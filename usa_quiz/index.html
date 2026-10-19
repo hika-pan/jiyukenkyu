@@ -185,6 +185,15 @@ footer { font-size: 0.75rem; color: var(--muted); }
 .item .sub { font-size: 0.82rem; color: var(--muted); }
 .item .body { margin: 2px 0 0; font-size: 0.92rem; max-width: 62ch; }
 .item.qa { grid-template-columns: minmax(0, 1fr); }
+.face {
+  display: block; width: 56px; height: 70px; object-fit: cover; object-position: center top;
+  border-radius: 6px; background: var(--land);
+}
+.face.lg { width: 72px; height: 90px; }
+.item .lead .face { margin-top: 6px; }
+.faces { display: flex; flex-wrap: wrap; gap: 10px; }
+.faces figure { margin: 0; display: grid; gap: 4px; justify-items: start; }
+.faces figcaption { font-size: 0.75rem; color: var(--muted); }
 .pill { display: inline-block; font-size: 0.7rem; font-weight: 700; border: 1px solid currentColor; border-radius: 999px; padding: 0 8px; margin-left: 6px; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
 .pill.dem { color: var(--mark); }
 .pill.rep { color: var(--star); }
@@ -231,7 +240,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
   <main class="card" id="card" aria-live="polite"></main>
   </div>
 
-  <footer>クイズのキー操作: 1〜4で回答（並び替えは順に押す）、Enterで次へ。ジャンル右の数字はこのブラウザでの累計正答率。地図データ: us-atlas。</footer>
+  <footer>クイズのキー操作: 1〜4で回答（並び替えは順に押す）、Enterで次へ。ジャンル右の数字はこのブラウザでの累計正答率。地図データ: us-atlas。大統領の肖像: Wikimedia Commons（パブリックドメイン／CC0）。</footer>
 </div>
 
 <script src="map-data.js"></script>
@@ -353,6 +362,56 @@ footer { font-size: 0.75rem; color: var(--muted); }
   ].map(([n, name, en, term, party, fact, clue]) => ({ n, name, en, term, party, fact, clue: clue || fact }));
   // 「第n代」で出題する、番号が知られている大統領
   const FAMOUS_NUMBERS = [1, 2, 3, 16, 32, 35, 44, 45, 46, 47];
+  // 大統領の肖像（Wikimedia Commons のパブリックドメイン／CC0 の画像。出典は README）。代 → Commons 上のパス
+  const PORTRAITS = {
+    1: "b/b6/Gilbert_Stuart_Williamstown_Portrait_of_George_Washington.jpg",
+    2: "f/ff/Gilbert_Stuart%2C_John_Adams%2C_c._1800-1815%2C_NGA_42933.jpg",
+    3: "0/07/Official_Presidential_portrait_of_Thomas_Jefferson_%28by_Rembrandt_Peale%2C_1800%29.jpg",
+    4: "1/1d/James_Madison.jpg",
+    5: "d/d4/James_Monroe_White_House_portrait_1819.jpg",
+    6: "8/8d/Portrait_of_John_Quincy_Adams_%28DRR%29_%28Cropped%29.jpg",
+    7: "4/43/Andrew_jackson_head.jpg",
+    8: "8/8b/Martin_Van_Buren_circa_1837_crop.jpg",
+    9: "c/c5/William_Henry_Harrison_daguerreotype_edit.jpg",
+    10: "0/00/WHOportTyler.jpg",
+    11: "5/5e/JKP.jpg",
+    12: "5/51/Zachary_Taylor_restored_and_cropped.jpg",
+    13: "c/cb/Millard_Fillmore_by_Brady_Studio_1855-65.jpg",
+    14: "4/46/Mathew_Brady_-_Franklin_Pierce_-_alternate_crop.jpg",
+    15: "f/fd/James_Buchanan.jpg",
+    16: "a/ab/Abraham_Lincoln_O-77_matte_collodion_print.jpg",
+    17: "e/e6/Andrew_Johnson_photo_portrait_head_and_shoulders%2C_c1870-1880-Edit1.jpg",
+    18: "5/5c/Ulysses_S._Grant_1870-1880.jpg",
+    19: "5/50/President_Rutherford_Hayes_1870_-_1880_Restored.jpg",
+    20: "1/1f/James_Abram_Garfield%2C_photo_portrait_seated.jpg",
+    21: "7/79/Chester_Alan_Arthur.jpg",
+    22: "f/f3/Grover_Cleveland_-_NARA_-_518139_%28cropped%29.jpg",
+    23: "f/f8/Benjamin_Harrison%2C_head_and_shoulders_bw_photo%2C_1896.jpg",
+    25: "6/6d/Mckinley.jpg",
+    26: "e/ef/Theodore_Roosevelt_by_the_Pach_Bros_%283x4_close_cropped%29.jpg",
+    27: "f/fc/William_Howard_Taft%2C_Bain_bw_photo_portrait%2C_1908.jpg",
+    28: "2/2d/President_Woodrow_Wilson_portrait_December_2_1912.jpg",
+    29: "c/c4/Warren_G_Harding-Harris_%26_Ewing.jpg",
+    30: "a/a3/Calvin_Coolidge_cph.3g10777_%28cropped%29.jpg",
+    31: "5/57/President_Hoover_portrait.jpg",
+    32: "7/77/Franklin_Roosevelt_-_Presidential_portrait.jpg",
+    33: "0/0b/TRUMAN_58-766-06_%28cropped%29.jpg",
+    34: "6/63/Dwight_D._Eisenhower%2C_official_photo_portrait%2C_May_29%2C_1959.jpg",
+    35: "c/c3/John_F._Kennedy%2C_White_House_color_photo_portrait.jpg",
+    36: "c/c3/37_Lyndon_Johnson_3x4.jpg",
+    37: "e/ec/Richard_Nixon_presidential_portrait.jpg",
+    38: "3/36/Gerald_Ford_presidential_portrait_%28cropped%29.jpg",
+    39: "5/5a/JimmyCarterPortrait2.jpg",
+    40: "1/16/Official_Portrait_of_President_Reagan_1981.jpg",
+    41: "e/ee/George_H._W._Bush_presidential_portrait_%28cropped%29.jpg",
+    42: "d/d3/Bill_Clinton.jpg",
+    43: "d/d4/George-W-Bush.jpeg",
+    44: "8/8d/President_Barack_Obama.jpg",
+    45: "5/56/Donald_Trump_official_portrait.jpg",
+    46: "6/68/Joe_Biden_presidential_portrait.jpg",
+    47: "1/16/Official_Presidential_Portrait_of_President_Donald_J._Trump_%282025%29.jpg",
+  };
+  PORTRAITS[24] = PORTRAITS[22];
 
   // [年, 出来事, 解説, そのときの大統領(代)]
   const EVENTS = [
@@ -460,6 +519,13 @@ footer { font-size: 0.75rem; color: var(--muted); }
   // ○×問題は2択を固定の並びで出す
   const TF = ["○ 正しい", "× まちがい"];
   const tf = (truth, q) => ({ ...q, choices: TF, fixed: true, answer: truth ? TF[0] : TF[1] });
+  // 読み込めなかった画像は消して、レイアウトを崩さない
+  const faceImg = (n, cls = "") => {
+    const path = PORTRAITS[n];
+    if (!path) return "";
+    const src = `https://upload.wikimedia.org/wikipedia/commons/thumb/${path}/250px-${path.split("/").pop()}`;
+    return `<img class="face${cls ? " " + cls : ""}" src="${src}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">`;
+  };
   const presNote = (p) => `第${p.n}代 ${p.name}（${p.en}）、在任 ${p.term}、${p.party}。${p.fact}`;
 
   // ---------- 出題 ----------
@@ -554,6 +620,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
           type: "order",
           prompt: "就任した順（古い順）に並べよう",
           items: four.map((x) => x.name),
+          faces: four.map((x) => x.n),
           note: four.map((x) => `第${x.n}代 ${x.name}（${x.term}）`).join(" → "),
         };
       }
@@ -565,6 +632,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
         return tf(truth, {
           key: "pres3" + e.year,
           prompt: `「${e.title}」（${e.year}年）のときの大統領は${name}である。`,
+          faces: [p.n],
           note: presNote(p),
         });
       }
@@ -576,6 +644,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
           key: "pres2" + e.year,
           prompt: `「${e.title}」（${e.year}年）のときの大統領は？`,
           answer: p.name, wrong: fill(p.name, shuffle(near).map((x) => x.name)),
+          faces: [p.n],
           note: presNote(p),
         };
       }
@@ -586,6 +655,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
         key: "pres" + mode + p.n,
         prompt: mode === 0 ? `${p.n === 1 ? "初代" : `第${p.n}代`}大統領は？` : `${p.clue}この大統領は誰？`,
         answer: p.name, wrong: fill(p.name, shuffle(near).map((x) => x.name)),
+        faces: [p.n],
         note: presNote(p),
       };
     },
@@ -780,12 +850,19 @@ footer { font-size: 0.75rem; color: var(--muted); }
       html += `
         <div class="feedback">
           <div class="verdict ${ok ? "ok" : "ng"}">${ok ? "正解" : `不正解。正解は「${esc(q.answer)}」${picked}`}</div>
+          ${q.faces ? facesHtml(q.faces) : ""}
           <p class="note">${esc(q.note)}</p>
           <div class="actions"><button type="button" class="btn" id="next">${last ? "結果を見る" : "次の問題"}</button></div>
         </div>`;
     }
     $card.innerHTML = html;
     if (done) document.getElementById("next").focus();
+  }
+
+  // 解説に添える肖像。1人なら名前、複数（並び替え）なら代を添える
+  function facesHtml(ns) {
+    return `<div class="faces">` + ns.map((n) => `
+      <figure>${faceImg(n, ns.length > 1 ? "" : "lg")}<figcaption>${ns.length > 1 ? `第${n}代` : `第${n}代 ${esc(presBy[n].name)}`}</figcaption></figure>`).join("") + `</div>`;
   }
 
   function choicesHtml(q, done) {
@@ -990,7 +1067,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
         <h3 class="group-h">${era[2]}<span class="span">${eraSpan(era)}</span></h3>
         <ul class="items">${items.map((p) => `
           <li class="item">
-            <span class="lead">第${p.n}代</span>
+            <div class="lead">第${p.n}代${faceImg(p.n)}</div>
             <div>
               <div class="title"><span class="secret">${p.name}<span class="sub"> ${p.en}</span></span><span class="pill ${party(p.party)}">${p.party}</span></div>
               <div class="sub">${p.term}</div>
