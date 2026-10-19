@@ -103,7 +103,7 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .map { width: 100%; max-width: 100%; height: auto; display: block; }
 .map .st { fill: var(--land); }
 .map .st.hl { fill: var(--mark); }
-.map .borders { fill: none; stroke: var(--land-line); stroke-width: 0.8; stroke-linejoin: round; }
+.map .borders { fill: none; stroke: var(--land-line); stroke-width: 0.8; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .map .ring { fill: none; stroke: var(--mark); stroke-width: 2.5; }
 .map .capstar { fill: var(--star); stroke: var(--surface); stroke-width: 1.5; }
 
@@ -558,6 +558,13 @@ footer { font-size: 0.75rem; color: var(--muted); }
   // ---------- 地図 ----------
   const MAP = window.US_MAP;
   const SMALL_AREA = 2500;
+  // 北東部の小さな州を押せるように拡大表示する範囲（x, y, 幅, 高さ）
+  const ZOOM_BOX = [770, 40, 205, 250];
+  const inZoomBox = (id) => {
+    const [x, y] = MAP.states[id].c;
+    const [bx, by, bw, bh] = ZOOM_BOX;
+    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
+  };
   function starPath(x, y, r) {
     let d = "";
     for (let i = 0; i < 10; i++) {
@@ -569,21 +576,23 @@ footer { font-size: 0.75rem; color: var(--muted); }
   }
   function mapSvg(opt) {
     if (!MAP) return "";
-    const { hl, dot, rg, click } = opt;
-    let s = `<svg class="map${click ? " clickable" : ""}" viewBox="0 0 975 610" role="img" aria-label="アメリカ合衆国の地図">`;
+    const { hl, dot, rg, click, zoom } = opt;
+    const k = zoom ? ZOOM_BOX[2] / 975 : 1;
+    const viewBox = zoom ? ZOOM_BOX.join(" ") : "0 0 975 610";
+    let s = `<svg class="map${click ? " clickable" : ""}" viewBox="${viewBox}" role="img" aria-label="アメリカ合衆国の地図${zoom ? "（北東部を拡大）" : ""}">`;
     for (const [id, st] of Object.entries(MAP.states)) {
       const cls = id === hl ? " hl" : rg && stateBy[id]?.region === rg ? " rg" : "";
       const title = click && stateBy[id] ? `<title>${stateBy[id].jp}州</title>` : "";
       s += `<path class="st${cls}" data-id="${id}" d="${st.d}">${title}</path>`;
     }
     s += `<path class="borders" d="${MAP.borders}"></path>`;
-    if (hl && MAP.states[hl].a < SMALL_AREA) {
+    if (hl && !zoom && MAP.states[hl].a < SMALL_AREA) {
       const [cx, cy] = MAP.states[hl].c;
       s += `<circle class="ring" cx="${cx}" cy="${cy}" r="18"></circle>`;
     }
     if (dot && MAP.states[dot].cap) {
       const [x, y] = MAP.states[dot].cap;
-      s += `<path class="capstar" d="${starPath(x, y, 11)}"></path>`;
+      s += `<path class="capstar" d="${starPath(x, y, 11 * Math.max(k, 0.4))}"></path>`;
     }
     return s + "</svg>";
   }
@@ -751,7 +760,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
   ];
   const $study = document.getElementById("study");
   const $subs = document.getElementById("study-subs");
-  const study = { sub: "states", sel: "06", hide: {} };
+  const study = { sub: "states", sel: "06", hide: {}, zoom: false };
 
   function stateMemo(s) {
     const parts = [];
@@ -772,7 +781,10 @@ footer { font-size: 0.75rem; color: var(--muted); }
     if (!stateBy[id]) return;
     study.sel = id;
     const s = stateBy[id];
-    document.getElementById("study-map").innerHTML = mapSvg({ hl: id, dot: id, rg: s.region, click: true });
+    // 拡大中に範囲外の州を選んだら、見えるように全体表示へ戻す
+    if (study.zoom && !inZoomBox(id)) study.zoom = false;
+    document.querySelectorAll("#zoom-seg button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.zoom === "1") === study.zoom)));
+    document.getElementById("study-map").innerHTML = mapSvg({ hl: id, dot: id, rg: s.region, click: true, zoom: study.zoom });
     document.getElementById("study-info").innerHTML = stateInfo(s);
     $study.querySelectorAll("tr[data-state]").forEach((tr) => tr.classList.toggle("sel", tr.dataset.state === id));
     if (scroll) {
@@ -794,7 +806,11 @@ footer { font-size: 0.75rem; color: var(--muted); }
       }).join("");
       return {
         meta: "50州・4地域。地図の州か表の行をタップすると詳しく表示",
-        html: `<div id="study-map"></div><div class="info" id="study-info"></div>${groups}`,
+        html: `<div class="seg" id="zoom-seg" role="group" aria-label="地図の表示範囲" style="justify-self:start">
+            <button type="button" data-zoom="0" aria-pressed="${!study.zoom}">全体</button>
+            <button type="button" data-zoom="1" aria-pressed="${study.zoom}">北東部を拡大</button>
+          </div>
+          <div id="study-map"></div><div class="info" id="study-info"></div>${groups}`,
       };
     },
     presidents() {
@@ -871,6 +887,13 @@ footer { font-size: 0.75rem; color: var(--muted); }
     if (secret && $study.classList.contains("hiding") && !secret.classList.contains("shown")) {
       secret.classList.add("shown");
       return;
+    }
+    const zb = e.target.closest("[data-zoom]");
+    if (zb) {
+      study.zoom = zb.dataset.zoom === "1";
+      // 拡大範囲外の州を選んでいたら、拡大範囲の中の州に選び直す
+      if (study.zoom && !inZoomBox(study.sel)) study.sel = "25";
+      return selectState(study.sel);
     }
     const path = e.target.closest("path[data-id]");
     if (path) return selectState(path.dataset.id);
