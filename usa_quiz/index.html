@@ -103,6 +103,7 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .map { width: 100%; max-width: 100%; height: auto; display: block; }
 .map .st { fill: var(--land); }
 .map .st.hl { fill: var(--mark); }
+.map .st.ng { fill: var(--ng); }
 .map .borders { fill: none; stroke: var(--land-line); stroke-width: 0.8; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .map .ring { fill: none; stroke: var(--mark); stroke-width: 2.5; }
 .map .capstar { fill: var(--star); stroke: var(--surface); stroke-width: 1.5; }
@@ -120,6 +121,14 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .choice .txt { min-width: 0; overflow-wrap: anywhere; }
 .choice.ok { background: var(--ok-bg); border-color: var(--ok); }
 .choice.ng { background: var(--ng-bg); border-color: var(--ng); }
+.choices.one { grid-template-columns: 1fr; }
+.choice.picked { border-color: var(--mark); }
+.choice .ord {
+  flex: none; align-self: center; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600;
+}
+.choice.picked .ord, .choice.ok .ord, .choice.ng .ord { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .mono { font-family: var(--font-mono); font-weight: 600; }
 
 .feedback { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 6px; }
@@ -222,7 +231,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
   <main class="card" id="card" aria-live="polite"></main>
   </div>
 
-  <footer>クイズのキー操作: 1〜4で回答、Enterで次へ。ジャンル右の数字はこのブラウザでの累計正答率。地図データ: us-atlas。</footer>
+  <footer>クイズのキー操作: 1〜4で回答（並び替えは順に押す）、Enterで次へ。ジャンル右の数字はこのブラウザでの累計正答率。地図データ: us-atlas。</footer>
 </div>
 
 <script src="map-data.js"></script>
@@ -230,59 +239,59 @@ footer { font-size: 0.75rem; color: var(--muted); }
 (() => {
   // ---------- データ ----------
   const REGION = { NE: "北東部", MW: "中西部", S: "南部", W: "西部" };
-  // [FIPS, 州名, 英語名, 州都, 州都(英語), 地域, 間違えやすい都市]
+  // [FIPS, 州名, 英語名, 州都, 州都(英語), 地域, 間違えやすい都市, 略号]
   const STATES = [
-    ["01","アラバマ","Alabama","モンゴメリー","Montgomery","S","バーミングハム"],
-    ["02","アラスカ","Alaska","ジュノー","Juneau","W","アンカレッジ"],
-    ["04","アリゾナ","Arizona","フェニックス","Phoenix","W","ツーソン"],
-    ["05","アーカンソー","Arkansas","リトルロック","Little Rock","S",""],
-    ["06","カリフォルニア","California","サクラメント","Sacramento","W","ロサンゼルス"],
-    ["08","コロラド","Colorado","デンバー","Denver","W",""],
-    ["09","コネチカット","Connecticut","ハートフォード","Hartford","NE","ニューヘイブン"],
-    ["10","デラウェア","Delaware","ドーバー","Dover","S","ウィルミントン"],
-    ["12","フロリダ","Florida","タラハシー","Tallahassee","S","マイアミ"],
-    ["13","ジョージア","Georgia","アトランタ","Atlanta","S",""],
-    ["15","ハワイ","Hawaii","ホノルル","Honolulu","W",""],
-    ["16","アイダホ","Idaho","ボイシ","Boise","W",""],
-    ["17","イリノイ","Illinois","スプリングフィールド","Springfield","MW","シカゴ"],
-    ["18","インディアナ","Indiana","インディアナポリス","Indianapolis","MW",""],
-    ["19","アイオワ","Iowa","デモイン","Des Moines","MW",""],
-    ["20","カンザス","Kansas","トピカ","Topeka","MW","ウィチタ"],
-    ["21","ケンタッキー","Kentucky","フランクフォート","Frankfort","S","ルイビル"],
-    ["22","ルイジアナ","Louisiana","バトンルージュ","Baton Rouge","S","ニューオーリンズ"],
-    ["23","メイン","Maine","オーガスタ","Augusta","NE","ポートランド"],
-    ["24","メリーランド","Maryland","アナポリス","Annapolis","S","ボルチモア"],
-    ["25","マサチューセッツ","Massachusetts","ボストン","Boston","NE",""],
-    ["26","ミシガン","Michigan","ランシング","Lansing","MW","デトロイト"],
-    ["27","ミネソタ","Minnesota","セントポール","Saint Paul","MW","ミネアポリス"],
-    ["28","ミシシッピ","Mississippi","ジャクソン","Jackson","S",""],
-    ["29","ミズーリ","Missouri","ジェファーソンシティ","Jefferson City","MW","カンザスシティ"],
-    ["30","モンタナ","Montana","ヘレナ","Helena","W","ビリングス"],
-    ["31","ネブラスカ","Nebraska","リンカーン","Lincoln","MW","オマハ"],
-    ["32","ネバダ","Nevada","カーソンシティ","Carson City","W","ラスベガス"],
-    ["33","ニューハンプシャー","New Hampshire","コンコード","Concord","NE","マンチェスター"],
-    ["34","ニュージャージー","New Jersey","トレントン","Trenton","NE","ニューアーク"],
-    ["35","ニューメキシコ","New Mexico","サンタフェ","Santa Fe","W","アルバカーキ"],
-    ["36","ニューヨーク","New York","オールバニ","Albany","NE","ニューヨーク市"],
-    ["37","ノースカロライナ","North Carolina","ローリー","Raleigh","S","シャーロット"],
-    ["38","ノースダコタ","North Dakota","ビスマーク","Bismarck","MW","ファーゴ"],
-    ["39","オハイオ","Ohio","コロンバス","Columbus","MW","クリーブランド"],
-    ["40","オクラホマ","Oklahoma","オクラホマシティ","Oklahoma City","S","タルサ"],
-    ["41","オレゴン","Oregon","セーラム","Salem","W","ポートランド"],
-    ["42","ペンシルベニア","Pennsylvania","ハリスバーグ","Harrisburg","NE","フィラデルフィア"],
-    ["44","ロードアイランド","Rhode Island","プロビデンス","Providence","NE",""],
-    ["45","サウスカロライナ","South Carolina","コロンビア","Columbia","S","チャールストン"],
-    ["46","サウスダコタ","South Dakota","ピア","Pierre","MW","スーフォールズ"],
-    ["47","テネシー","Tennessee","ナッシュビル","Nashville","S","メンフィス"],
-    ["48","テキサス","Texas","オースティン","Austin","S","ヒューストン"],
-    ["49","ユタ","Utah","ソルトレイクシティ","Salt Lake City","W",""],
-    ["50","バーモント","Vermont","モントピリア","Montpelier","NE","バーリントン"],
-    ["51","バージニア","Virginia","リッチモンド","Richmond","S","バージニアビーチ"],
-    ["53","ワシントン","Washington","オリンピア","Olympia","W","シアトル"],
-    ["54","ウェストバージニア","West Virginia","チャールストン","Charleston","S",""],
-    ["55","ウィスコンシン","Wisconsin","マディソン","Madison","MW","ミルウォーキー"],
-    ["56","ワイオミング","Wyoming","シャイアン","Cheyenne","W",""],
-  ].map(([id, jp, en, cap, capEn, region, trap]) => ({ id, jp, en, cap, capEn, region, trap }));
+    ["01","アラバマ","Alabama","モンゴメリー","Montgomery","S","バーミングハム","AL"],
+    ["02","アラスカ","Alaska","ジュノー","Juneau","W","アンカレッジ","AK"],
+    ["04","アリゾナ","Arizona","フェニックス","Phoenix","W","ツーソン","AZ"],
+    ["05","アーカンソー","Arkansas","リトルロック","Little Rock","S","","AR"],
+    ["06","カリフォルニア","California","サクラメント","Sacramento","W","ロサンゼルス","CA"],
+    ["08","コロラド","Colorado","デンバー","Denver","W","","CO"],
+    ["09","コネチカット","Connecticut","ハートフォード","Hartford","NE","ニューヘイブン","CT"],
+    ["10","デラウェア","Delaware","ドーバー","Dover","S","ウィルミントン","DE"],
+    ["12","フロリダ","Florida","タラハシー","Tallahassee","S","マイアミ","FL"],
+    ["13","ジョージア","Georgia","アトランタ","Atlanta","S","","GA"],
+    ["15","ハワイ","Hawaii","ホノルル","Honolulu","W","","HI"],
+    ["16","アイダホ","Idaho","ボイシ","Boise","W","","ID"],
+    ["17","イリノイ","Illinois","スプリングフィールド","Springfield","MW","シカゴ","IL"],
+    ["18","インディアナ","Indiana","インディアナポリス","Indianapolis","MW","","IN"],
+    ["19","アイオワ","Iowa","デモイン","Des Moines","MW","","IA"],
+    ["20","カンザス","Kansas","トピカ","Topeka","MW","ウィチタ","KS"],
+    ["21","ケンタッキー","Kentucky","フランクフォート","Frankfort","S","ルイビル","KY"],
+    ["22","ルイジアナ","Louisiana","バトンルージュ","Baton Rouge","S","ニューオーリンズ","LA"],
+    ["23","メイン","Maine","オーガスタ","Augusta","NE","ポートランド","ME"],
+    ["24","メリーランド","Maryland","アナポリス","Annapolis","S","ボルチモア","MD"],
+    ["25","マサチューセッツ","Massachusetts","ボストン","Boston","NE","","MA"],
+    ["26","ミシガン","Michigan","ランシング","Lansing","MW","デトロイト","MI"],
+    ["27","ミネソタ","Minnesota","セントポール","Saint Paul","MW","ミネアポリス","MN"],
+    ["28","ミシシッピ","Mississippi","ジャクソン","Jackson","S","","MS"],
+    ["29","ミズーリ","Missouri","ジェファーソンシティ","Jefferson City","MW","カンザスシティ","MO"],
+    ["30","モンタナ","Montana","ヘレナ","Helena","W","ビリングス","MT"],
+    ["31","ネブラスカ","Nebraska","リンカーン","Lincoln","MW","オマハ","NE"],
+    ["32","ネバダ","Nevada","カーソンシティ","Carson City","W","ラスベガス","NV"],
+    ["33","ニューハンプシャー","New Hampshire","コンコード","Concord","NE","マンチェスター","NH"],
+    ["34","ニュージャージー","New Jersey","トレントン","Trenton","NE","ニューアーク","NJ"],
+    ["35","ニューメキシコ","New Mexico","サンタフェ","Santa Fe","W","アルバカーキ","NM"],
+    ["36","ニューヨーク","New York","オールバニ","Albany","NE","ニューヨーク市","NY"],
+    ["37","ノースカロライナ","North Carolina","ローリー","Raleigh","S","シャーロット","NC"],
+    ["38","ノースダコタ","North Dakota","ビスマーク","Bismarck","MW","ファーゴ","ND"],
+    ["39","オハイオ","Ohio","コロンバス","Columbus","MW","クリーブランド","OH"],
+    ["40","オクラホマ","Oklahoma","オクラホマシティ","Oklahoma City","S","タルサ","OK"],
+    ["41","オレゴン","Oregon","セーラム","Salem","W","ポートランド","OR"],
+    ["42","ペンシルベニア","Pennsylvania","ハリスバーグ","Harrisburg","NE","フィラデルフィア","PA"],
+    ["44","ロードアイランド","Rhode Island","プロビデンス","Providence","NE","","RI"],
+    ["45","サウスカロライナ","South Carolina","コロンビア","Columbia","S","チャールストン","SC"],
+    ["46","サウスダコタ","South Dakota","ピア","Pierre","MW","スーフォールズ","SD"],
+    ["47","テネシー","Tennessee","ナッシュビル","Nashville","S","メンフィス","TN"],
+    ["48","テキサス","Texas","オースティン","Austin","S","ヒューストン","TX"],
+    ["49","ユタ","Utah","ソルトレイクシティ","Salt Lake City","W","","UT"],
+    ["50","バーモント","Vermont","モントピリア","Montpelier","NE","バーリントン","VT"],
+    ["51","バージニア","Virginia","リッチモンド","Richmond","S","バージニアビーチ","VA"],
+    ["53","ワシントン","Washington","オリンピア","Olympia","W","シアトル","WA"],
+    ["54","ウェストバージニア","West Virginia","チャールストン","Charleston","S","","WV"],
+    ["55","ウィスコンシン","Wisconsin","マディソン","Madison","MW","ミルウォーキー","WI"],
+    ["56","ワイオミング","Wyoming","シャイアン","Cheyenne","W","","WY"],
+  ].map(([id, jp, en, cap, capEn, region, trap, ab]) => ({ id, jp, en, cap, capEn, region, trap, ab }));
   const STATE_NOTE = {
     "53": "首都ワシントンD.C.とは別で、西海岸の最北にある州。",
     "02": "1867年にロシアから購入。面積は全米最大。",
@@ -442,12 +451,48 @@ footer { font-size: 0.75rem; color: var(--muted); }
   const presBy = Object.fromEntries(PRESIDENTS.map((p) => [p.n, p]));
   const stateNote = (s) =>
     `${s.jp}州（${s.en}）は${REGION[s.region]}の州で、州都は${s.cap}（${s.capEn}）。${STATE_NOTE[s.id] || ""}`;
+  // 同じ文字で始まる略号は取り違えやすいので、まとめて見せる
+  const abbrNote = (s) => {
+    const same = STATES.filter((x) => x.ab[0] === s.ab[0]);
+    const list = same.length >= 3 ? `${s.ab[0]}で始まる略号：${same.map((x) => `${x.ab} ${x.jp}`).join("、")}。` : "";
+    return `${s.jp}州（${s.en}）の略号は${s.ab}。${list}`;
+  };
+  // ○×問題は2択を固定の並びで出す
+  const TF = ["○ 正しい", "× まちがい"];
+  const tf = (truth, q) => ({ ...q, choices: TF, fixed: true, answer: truth ? TF[0] : TF[1] });
   const presNote = (p) => `第${p.n}代 ${p.name}（${p.en}）、在任 ${p.term}、${p.party}。${p.fact}`;
 
   // ---------- 出題 ----------
   const GEN = {
     map() {
       const s = pick(STATES);
+      const mode = rand(3);
+      if (mode === 1) return {
+        key: "tap" + s.id,
+        type: "maptap",
+        prompt: `${s.jp}州はどこ？地図でタップ`, en: s.en,
+        target: s.id,
+        answer: s.jp + "州",
+        note: stateNote(s),
+      };
+      if (mode === 2) {
+        const same = shuffle(STATES.filter((x) => x !== s && x.ab[0] === s.ab[0]));
+        if (rand(2)) return {
+          key: "ab0" + s.id,
+          prompt: `略号「${s.ab}」の州は？`,
+          answer: s.jp + "州", wrong: fill(s.jp + "州", same.map((x) => x.jp + "州"), shuffle(STATES).map((x) => x.jp + "州")),
+          after: { hl: s.id },
+          note: abbrNote(s),
+        };
+        return {
+          key: "ab1" + s.id,
+          prompt: `${s.jp}州の略号は？`,
+          answer: s.ab, wrong: fill(s.ab, same.map((x) => x.ab), shuffle(STATES).map((x) => x.ab)),
+          mono: true,
+          after: { hl: s.id },
+          note: abbrNote(s),
+        };
+      }
       const near = STATES.filter((x) => x.region === s.region);
       return {
         key: "map" + s.id,
@@ -461,7 +506,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
     },
     capital() {
       const s = pick(STATES);
-      const mode = rand(3);
+      const mode = rand(4);
       const caps = shuffle(STATES).map((x) => x.cap);
       const trapNote = s.trap ? `${s.trap}と間違えやすいので注意。` : "";
       if (mode === 0) return {
@@ -479,6 +524,17 @@ footer { font-size: 0.75rem; color: var(--muted); }
         after: { hl: s.id, dot: s.id },
         note: stateNote(s),
       };
+      if (mode === 3) {
+        // まちがいの文には、間違えやすい都市があればそれを使う
+        const truth = rand(2) === 0;
+        const city = truth ? s.cap : s.trap || pick(STATES.filter((x) => x !== s)).cap;
+        return tf(truth, {
+          key: "cap3" + s.id,
+          prompt: `${city}は${s.jp}州の州都である。`,
+          after: { hl: s.id, dot: s.id },
+          note: stateNote(s) + trapNote,
+        });
+      }
       return {
         key: "cap2" + s.id,
         prompt: "地図の★の位置にある州都は？",
@@ -489,7 +545,29 @@ footer { font-size: 0.75rem; color: var(--muted); }
       };
     },
     president() {
-      const mode = rand(3);
+      const mode = rand(5);
+      if (mode === 4) {
+        // 2期目の重複（第24代・第47代）は並び順が決まらないので除く
+        const four = sample(PRESIDENTS.filter((x) => x.n !== 24 && x.n !== 47), 4).sort((a, b) => a.n - b.n);
+        return {
+          key: "pres4" + four.map((x) => x.n).join(),
+          type: "order",
+          prompt: "就任した順（古い順）に並べよう",
+          items: four.map((x) => x.name),
+          note: four.map((x) => `第${x.n}代 ${x.name}（${x.term}）`).join(" → "),
+        };
+      }
+      if (mode === 3) {
+        const e = pick(EVENTS.filter((x) => x.pres));
+        const p = presBy[e.pres];
+        const truth = rand(2) === 0;
+        const name = truth ? p.name : pick(PRESIDENTS.filter((x) => Math.abs(x.n - p.n) <= 6 && x.name !== p.name)).name;
+        return tf(truth, {
+          key: "pres3" + e.year,
+          prompt: `「${e.title}」（${e.year}年）のときの大統領は${name}である。`,
+          note: presNote(p),
+        });
+      }
       if (mode === 2) {
         const e = pick(EVENTS.filter((x) => x.pres));
         const p = presBy[e.pres];
@@ -512,20 +590,39 @@ footer { font-size: 0.75rem; color: var(--muted); }
       };
     },
     history() {
-      const mode = rand(3);
+      const mode = rand(4);
       if (mode === 2) {
-        const four = sample(EVENTS, 4);
-        const oldest = four.reduce((a, b) => (a.year < b.year ? a : b));
+        const four = sample(EVENTS, 4).sort((a, b) => a.year - b.year);
         return {
           key: "hist2" + four.map((x) => x.year).join(),
-          prompt: "次のうち、最も古い出来事は？",
-          answer: oldest.title, wrong: four.filter((x) => x !== oldest).map((x) => x.title),
-          note: four.slice().sort((a, b) => a.year - b.year).map((x) => `${x.year}年 ${x.title}`).join(" → "),
+          type: "order",
+          prompt: "古い順に並べよう",
+          items: four.map((x) => x.title),
+          note: four.map((x) => `${x.year}年 ${x.title}`).join(" → "),
         };
       }
       const e = pick(EVENTS);
       // 近い年の出来事ほど誤答に選ばれやすくして、難しすぎず易しすぎない4択にする
       const near = EVENTS.filter((x) => x !== e).sort((a, b) => Math.abs(a.year - e.year) - Math.abs(b.year - e.year)).slice(0, 6);
+      if (mode === 3) {
+        const truth = rand(2) === 0;
+        if (rand(2)) {
+          const year = truth ? e.year : pick(near).year;
+          return tf(truth, {
+            key: "hist3" + e.year,
+            prompt: `「${e.title}」は${year}年の出来事である。`,
+            note: `${e.year}年：${e.note}`,
+          });
+        }
+        // 前後の比較は、年が近い出来事どうしにして簡単になりすぎないようにする
+        const o = pick(near);
+        const [a, b] = truth === (e.year < o.year) ? [e, o] : [o, e];
+        return tf(a.year < b.year, {
+          key: "hist4" + [e.year, o.year].sort().join(),
+          prompt: `「${a.title}」は「${b.title}」より前に起きた。`,
+          note: [e, o].sort((x, y) => x.year - y.year).map((x) => `${x.year}年 ${x.title}`).join(" → "),
+        });
+      }
       if (mode === 0) return {
         key: "hist0" + e.year,
         prompt: `「${e.title}」が起きた年は？`,
@@ -554,7 +651,13 @@ footer { font-size: 0.75rem; color: var(--muted); }
     }
     used.add(q.key);
     q.cat = cat;
-    q.choices = shuffle([q.answer, ...q.wrong]);
+    q.type ||= "choice";
+    if (q.type === "order") {
+      q.answer = q.items.join(" → ");
+      q.choices = shuffle(q.items);
+    } else if (q.type === "choice" && !q.choices) {
+      q.choices = shuffle([q.answer, ...q.wrong]);
+    }
     return q;
   }
 
@@ -579,13 +682,13 @@ footer { font-size: 0.75rem; color: var(--muted); }
   }
   function mapSvg(opt) {
     if (!MAP) return "";
-    const { hl, dot, rg, click, zoom } = opt;
+    const { hl, ng, dot, rg, click, names, zoom } = opt;
     const k = zoom ? ZOOM_BOX[2] / 975 : 1;
     const viewBox = zoom ? ZOOM_BOX.join(" ") : "0 0 975 610";
     let s = `<svg class="map${click ? " clickable" : ""}" viewBox="${viewBox}" role="img" aria-label="アメリカ合衆国の地図${zoom ? "（北東部を拡大）" : ""}">`;
     for (const [id, st] of Object.entries(MAP.states)) {
-      const cls = id === hl ? " hl" : rg && stateBy[id]?.region === rg ? " rg" : "";
-      const title = click && stateBy[id] ? `<title>${stateBy[id].jp}州</title>` : "";
+      const cls = id === hl ? " hl" : id === ng ? " ng" : rg && stateBy[id]?.region === rg ? " rg" : "";
+      const title = names && stateBy[id] ? `<title>${stateBy[id].jp}州</title>` : "";
       s += `<path class="st${cls}" data-id="${id}" d="${st.d}">${title}</path>`;
     }
     s += `<path class="borders" d="${MAP.borders}"></path>`;
@@ -616,6 +719,8 @@ footer { font-size: 0.75rem; color: var(--muted); }
   let selected = new Set(CATS.map((c) => c.id));
   let count = 10;
   let game;
+  // クイズの地図の表示範囲。答えの場所のヒントにならないよう、問題をまたいで利用者の選択を保つ
+  let quizZoom = false;
 
   function renderCats() {
     $cats.innerHTML = CATS.map((c) => {
@@ -632,7 +737,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
       const order = shuffle(Array.from({ length: count }, (_, i) => ids[i % ids.length]));
       questions = order.map((cat) => makeQuestion(cat, used));
     }
-    game = { qs: questions, i: 0, results: [], answered: null };
+    game = { qs: questions, i: 0, results: [], answered: null, picking: [] };
     renderQuestion();
   }
 
@@ -649,26 +754,32 @@ footer { font-size: 0.75rem; color: var(--muted); }
     const done = game.answered !== null;
     const score = game.results.filter(Boolean).length;
     const catName = CATS.find((c) => c.id === q.cat).name;
-    const mapOpt = done ? q.after || q.map : q.map;
+    let mapOpt = done ? q.after || q.map : q.map;
+    let zoomSeg = "";
+    if (q.type === "maptap") {
+      // 拡大中に答えが範囲外だったときは、正解が見えるように全体表示にする
+      const zoom = quizZoom && !(done && !inZoomBox(q.target));
+      mapOpt = done ? { hl: q.target, ng: game.picked !== q.target ? game.picked : null, zoom } : { click: true, zoom };
+      zoomSeg = `<div class="seg" role="group" aria-label="地図の表示範囲" style="justify-self:start">
+          <button type="button" data-qzoom="0" aria-pressed="${!zoom}">全体</button>
+          <button type="button" data-qzoom="1" aria-pressed="${zoom}">北東部を拡大</button>
+        </div>`;
+    }
     let html = `
       <div class="status"><span>問題 <span class="num">${game.i + 1} / ${game.qs.length}</span></span><span>正解 <span class="num">${score}</span></span></div>
       ${stripes()}
       <span class="tag">${esc(catName)}</span>
       <p class="prompt">${esc(q.prompt)}${q.en ? `<span class="en">${esc(q.en)}</span>` : ""}</p>
+      ${zoomSeg}
       ${mapOpt ? mapSvg(mapOpt) : ""}
-      <div class="choices">` +
-      q.choices.map((c, i) => {
-        let cls = "";
-        if (done && c === q.answer) cls = " ok";
-        else if (done && c === game.answered) cls = " ng";
-        return `<button type="button" class="choice${cls}" id="choice-${i}" data-i="${i}"${done ? " disabled" : ""}><span class="key">${i + 1}</span><span class="txt${q.mono ? " mono" : ""}">${esc(c)}</span></button>`;
-      }).join("") + `</div>`;
+      ${q.type === "order" ? orderHtml(q, done) : q.type === "choice" ? choicesHtml(q, done) : ""}`;
     if (done) {
-      const ok = game.answered === q.answer;
+      const ok = game.results[game.i];
       const last = game.i === game.qs.length - 1;
+      const picked = q.type === "maptap" && !ok && stateBy[game.picked] ? `（選んだのは${stateBy[game.picked].jp}州）` : "";
       html += `
         <div class="feedback">
-          <div class="verdict ${ok ? "ok" : "ng"}">${ok ? "正解" : `不正解。正解は「${esc(q.answer)}」`}</div>
+          <div class="verdict ${ok ? "ok" : "ng"}">${ok ? "正解" : `不正解。正解は「${esc(q.answer)}」${picked}`}</div>
           <p class="note">${esc(q.note)}</p>
           <div class="actions"><button type="button" class="btn" id="next">${last ? "結果を見る" : "次の問題"}</button></div>
         </div>`;
@@ -677,19 +788,69 @@ footer { font-size: 0.75rem; color: var(--muted); }
     if (done) document.getElementById("next").focus();
   }
 
-  function answer(i) {
-    if (!game || game.answered !== null || game.i >= game.qs.length) return;
+  function choicesHtml(q, done) {
+    return `<div class="choices">` + q.choices.map((c, i) => {
+      let cls = "";
+      if (done && c === q.answer) cls = " ok";
+      else if (done && c === game.answered) cls = " ng";
+      return `<button type="button" class="choice${cls}" id="choice-${i}" data-i="${i}"${done ? " disabled" : ""}><span class="key">${i + 1}</span><span class="txt${q.mono ? " mono" : ""}">${esc(c)}</span></button>`;
+    }).join("") + `</div>`;
+  }
+
+  // 並び替え: 押した順に番号が付き、番号付きのものをもう一度押すと取り消す。全部押したら答え合わせ
+  function orderHtml(q, done) {
+    const pos = (i) => game.picking.indexOf(i) + 1;
+    return `${done ? "" : `<p class="hint" style="margin:0">順番にタップ。番号の付いたものをもう一度タップすると取り消せます。</p>`}
+      <div class="choices one">` + q.choices.map((c, i) => {
+      const n = pos(i);
+      let cls = n ? " picked" : "";
+      if (done) cls = q.items[n - 1] === c ? " ok" : " ng";
+      return `<button type="button" class="choice${cls}" id="choice-${i}" data-o="${i}"${done ? " disabled" : ""}><span class="ord" aria-label="${n ? `${n}番目` : "未選択"}">${n || ""}</span><span class="txt">${esc(c)}</span></button>`;
+    }).join("") + `</div>`;
+  }
+
+  function finish(ok, answered) {
     const q = game.qs[game.i];
-    game.answered = q.choices[i];
-    const ok = game.answered === q.answer;
+    game.answered = answered;
     game.results[game.i] = ok;
     record(q.cat, ok);
     renderQuestion();
   }
 
+  const answering = () => game && game.answered === null && game.i < game.qs.length;
+
+  function answer(i) {
+    if (!answering()) return;
+    const q = game.qs[game.i];
+    if (q.type !== "choice" || !(i in q.choices)) return;
+    finish(q.choices[i] === q.answer, q.choices[i]);
+  }
+
+  function pickOrder(i) {
+    if (!answering()) return;
+    const q = game.qs[game.i];
+    if (q.type !== "order" || !(i in q.choices)) return;
+    const at = game.picking.indexOf(i);
+    if (at >= 0) game.picking.splice(at, 1);
+    else game.picking.push(i);
+    if (game.picking.length < q.choices.length) return renderQuestion();
+    const order = game.picking.map((x) => q.choices[x]);
+    finish(order.every((c, k) => c === q.items[k]), order.join(" → "));
+  }
+
+  function tapState(id) {
+    if (!answering()) return;
+    const q = game.qs[game.i];
+    if (q.type !== "maptap" || !stateBy[id]) return;
+    game.picked = id;
+    finish(id === q.target, stateBy[id].jp + "州");
+  }
+
   function next() {
     if (!game || game.answered === null) return;
     game.answered = null;
+    game.picking = [];
+    game.picked = null;
     game.i++;
     if (game.i >= game.qs.length) renderResult();
     else renderQuestion();
@@ -739,9 +900,15 @@ footer { font-size: 0.75rem; color: var(--muted); }
   $card.addEventListener("click", (e) => {
     const c = e.target.closest("[data-i]");
     if (c) return answer(Number(c.dataset.i));
+    const o = e.target.closest("[data-o]");
+    if (o) return pickOrder(Number(o.dataset.o));
+    const z = e.target.closest("[data-qzoom]");
+    if (z) { quizZoom = z.dataset.qzoom === "1"; return renderQuestion(); }
+    const path = e.target.closest("path[data-id]");
+    if (path) return tapState(path.dataset.id);
     if (e.target.closest("#next")) return next();
     if (e.target.closest("#again")) return newGame();
-    if (e.target.closest("#retry")) return newGame(shuffle(game.missed).map((q) => ({ ...q, choices: shuffle(q.choices) })));
+    if (e.target.closest("#retry")) return newGame(shuffle(game.missed).map((q) => ({ ...q, choices: q.choices && !q.fixed ? shuffle(q.choices) : q.choices })));
   });
   // ---------- 覚える ----------
   const ERAS = [
@@ -776,6 +943,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
       <div class="name">${s.jp}州<span class="en">${s.en}</span></div>
       <dl>
         <dt>州都</dt><dd><span class="secret">${s.cap}（${s.capEn}）</span></dd>
+        <dt>略号</dt><dd class="mono">${s.ab}</dd>
         <dt>地域</dt><dd>${REGION[s.region]}</dd>
         ${stateMemo(s) ? `<dt>メモ</dt><dd>${esc(stateMemo(s))}</dd>` : ""}
       </dl>`;
@@ -787,7 +955,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
     // 拡大中に範囲外の州を選んだら、見えるように全体表示へ戻す
     if (study.zoom && !inZoomBox(id)) study.zoom = false;
     document.querySelectorAll("#zoom-seg button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.zoom === "1") === study.zoom)));
-    document.getElementById("study-map").innerHTML = mapSvg({ hl: id, dot: id, rg: s.region, click: true, zoom: study.zoom });
+    document.getElementById("study-map").innerHTML = mapSvg({ hl: id, dot: id, rg: s.region, click: true, names: true, zoom: study.zoom });
     document.getElementById("study-info").innerHTML = stateInfo(s);
     $study.querySelectorAll("tr[data-state]").forEach((tr) => tr.classList.toggle("sel", tr.dataset.state === id));
     if (scroll) {
@@ -801,7 +969,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
       const groups = Object.keys(REGION).map((rg) => {
         const rows = STATES.filter((s) => s.region === rg).map((s) => `
           <tr data-state="${s.id}"${s.id === study.sel ? ' class="sel"' : ""}>
-            <td><span class="nm">${s.jp}</span><span class="en">${s.en}</span>${stateMemo(s) ? `<span class="memo">${esc(stateMemo(s))}</span>` : ""}</td>
+            <td><span class="nm">${s.jp}</span><span class="en">${s.en} · ${s.ab}</span>${stateMemo(s) ? `<span class="memo">${esc(stateMemo(s))}</span>` : ""}</td>
             <td><span class="secret"><span class="nm">${s.cap}</span><span class="en">${s.capEn}</span></span></td>
           </tr>`).join("");
         return `<h3 class="group-h">${REGION[rg]}<span class="span">${STATES.filter((s) => s.region === rg).length}州</span></h3>
@@ -922,7 +1090,11 @@ footer { font-size: 0.75rem; color: var(--muted); }
   document.addEventListener("keydown", (e) => {
     if (view !== "quiz") return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (/^[1-4]$/.test(e.key)) answer(Number(e.key) - 1);
+    if (/^[1-4]$/.test(e.key)) {
+      const i = Number(e.key) - 1;
+      if (game?.qs[game.i]?.type === "order") pickOrder(i);
+      else answer(i);
+    }
     else if (e.key === "Enter" && game && game.answered !== null && document.activeElement?.id !== "next") { e.preventDefault(); next(); }
   });
 
