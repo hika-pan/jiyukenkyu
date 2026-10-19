@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>アメリカ基礎クイズ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 1カラムの出題カード。上に設定バー、進捗は13本の縞に見立てたセグメント */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --ink: #15213d;
+  --muted: #5a6479;
+  --line: #d3d9e4;
+  --land: #dbe1eb;
+  --land-line: #ffffff;
+  --mark: #2147b0;
+  --mark-soft: #c9d6f6;
+  --star: #b8262b;
+  --ok: #1d7a4c;
+  --ok-bg: #e2f3ea;
+  --ng: #b3262b;
+  --ng-bg: #fbe6e6;
+  --focus: #2147b0;
+  --font-display: "Dela Gothic One", "Hiragino Kaku Gothic StdN", "Yu Gothic", sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1322; --surface: #151d31; --ink: #e5e9f2; --muted: #9aa3b7; --line: #29344d;
+    --land: #263049; --land-line: #151d31; --mark: #7c9dff; --mark-soft: #34467a; --star: #ff7a7a;
+    --ok: #4cc38a; --ok-bg: #173527; --ng: #f07a7a; --ng-bg: #3b1c22; --focus: #9db6ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1322; --surface: #151d31; --ink: #e5e9f2; --muted: #9aa3b7; --line: #29344d;
+  --land: #263049; --land-line: #151d31; --mark: #7c9dff; --mark-soft: #34467a; --star: #ff7a7a;
+  --ok: #4cc38a; --ok-bg: #173527; --ng: #f07a7a; --ng-bg: #3b1c22; --focus: #9db6ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+#study-subs { max-width: 100%; overflow-x: auto; justify-self: start; }
+#study-subs button { white-space: nowrap; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+.wrap {
+  max-width: 720px; margin: 0 auto;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px;
+}
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 1.75rem; line-height: 1.25; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.settings { display: grid; gap: 10px; }
+.label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: inherit; font-size: 0.85rem; font-weight: 500; color: var(--ink);
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline;
+}
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip .rate { font-family: var(--font-mono); font-size: 0.72rem; opacity: 0.7; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 0.85rem; background: transparent; color: var(--ink); border: 0; padding: 5px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--mark-soft); font-weight: 700; }
+.btn {
+  font: inherit; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+  background: var(--ink); color: var(--bg); border: 0; border-radius: 10px; padding: 10px 18px;
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px; display: grid; gap: 14px; min-width: 0;
+}
+.status { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--muted); }
+.status .num { font-family: var(--font-mono); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stripes { display: flex; gap: 3px; }
+.stripes i { flex: 1; height: 6px; border-radius: 2px; background: var(--line); }
+.stripes i.ok { background: var(--ok); }
+.stripes i.ng { background: var(--ng); }
+.stripes i.now { background: var(--mark); }
+.tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; color: var(--mark); }
+.prompt { font-size: 1.25rem; font-weight: 700; line-height: 1.5; margin: 0; text-wrap: balance; }
+.prompt .en { display: block; font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+
+.map { width: 100%; max-width: 100%; height: auto; display: block; }
+.map .st { fill: var(--land); }
+.map .st.hl { fill: var(--mark); }
+.map .borders { fill: none; stroke: var(--land-line); stroke-width: 0.8; stroke-linejoin: round; }
+.map .ring { fill: none; stroke: var(--mark); stroke-width: 2.5; }
+.map .capstar { fill: var(--star); stroke: var(--surface); stroke-width: 1.5; }
+
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { .choices { grid-template-columns: 1fr; } }
+.choice {
+  font: inherit; font-size: 1rem; font-weight: 500; text-align: left; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; min-width: 0;
+}
+.choice:hover:not(:disabled) { border-color: var(--mark); }
+.choice:disabled { cursor: default; }
+.choice .key { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); flex: none; }
+.choice .txt { min-width: 0; overflow-wrap: anywhere; }
+.choice.ok { background: var(--ok-bg); border-color: var(--ok); }
+.choice.ng { background: var(--ng-bg); border-color: var(--ng); }
+.mono { font-family: var(--font-mono); font-weight: 600; }
+
+.feedback { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 6px; }
+.verdict { font-weight: 700; font-size: 1.05rem; }
+.verdict.ok { color: var(--ok); }
+.verdict.ng { color: var(--ng); }
+.note { margin: 0; color: var(--ink); max-width: 62ch; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.hint { font-size: 0.75rem; color: var(--muted); }
+
+.result h2 { font-family: var(--font-display); font-weight: 400; font-size: 2.4rem; margin: 0; line-height: 1.1; }
+.result h2 small { font-family: var(--font-body); font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 6px; }
+.missed { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.missed li { border-left: 3px solid var(--ng); padding-left: 10px; }
+.missed .q { font-weight: 500; }
+.missed .a { color: var(--muted); font-size: 0.9rem; }
+footer { font-size: 0.75rem; color: var(--muted); }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tab {
+  font: inherit; font-weight: 700; font-size: 1rem; color: var(--muted); cursor: pointer;
+  background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; padding: 8px 14px;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--mark); }
+.view { display: grid; gap: 16px; }
+.map .st.rg { fill: var(--mark-soft); }
+.map.clickable .st { cursor: pointer; }
+.map.clickable .st:not(.hl):hover { fill: var(--line); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.toolbar .meta { font-size: 0.85rem; color: var(--muted); }
+.info { display: grid; gap: 2px; border-top: 1px solid var(--line); padding-top: 12px; }
+.info .name { font-size: 1.3rem; font-weight: 700; }
+.info .name .en { font-size: 0.9rem; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.info dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 6px 0 0; }
+.info dt { font-size: 0.8rem; color: var(--muted); }
+.info dd { margin: 0; }
+.group-h { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); margin: 8px 0 0; }
+.group-h .span { font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; margin-left: 8px; }
+.tbl { overflow-x: auto; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.tbl th { text-align: left; font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tr[data-state] { cursor: pointer; }
+.tbl tr[data-state]:hover td { background: var(--bg); }
+.tbl tr.sel td { background: var(--mark-soft); }
+.tbl .en { display: block; font-size: 0.78rem; color: var(--muted); }
+.tbl td { width: 50%; }
+.tbl .nm { font-weight: 500; }
+.tbl .memo { display: block; margin-top: 2px; font-size: 0.8rem; color: var(--mark); }
+.items { list-style: none; margin: 0; padding: 0; display: grid; }
+.item { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.item .lead { font-family: var(--font-mono); font-weight: 600; color: var(--mark); font-variant-numeric: tabular-nums; }
+.item .title { font-weight: 700; }
+.item .sub { font-size: 0.82rem; color: var(--muted); }
+.item .body { margin: 2px 0 0; font-size: 0.92rem; max-width: 62ch; }
+.item.qa { grid-template-columns: minmax(0, 1fr); }
+.pill { display: inline-block; font-size: 0.7rem; font-weight: 700; border: 1px solid currentColor; border-radius: 999px; padding: 0 8px; margin-left: 6px; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
+.pill.dem { color: var(--mark); }
+.pill.rep { color: var(--star); }
+.secret { border-radius: 4px; }
+.hiding .secret:not(.shown) { background: var(--land); cursor: pointer; }
+.hiding .secret:not(.shown), .hiding .secret:not(.shown) * { color: transparent !important; border-color: transparent !important; }
+@media (prefers-reduced-motion: no-preference) {
+  .map .st { transition: fill 0.25s ease; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>アメリカ基礎クイズ</h1>
+    <p class="lede">50州と州都、地図上の位置、歴代大統領、歴史の年号。「覚える」で一覧と地図を見て、「クイズ」で確かめる。</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="モード">
+    <button type="button" class="tab" role="tab" id="tab-study" data-view="study" aria-selected="true">覚える</button>
+    <button type="button" class="tab" role="tab" id="tab-quiz" data-view="quiz" aria-selected="false">クイズ</button>
+  </nav>
+
+  <div class="view" id="view-study">
+    <div class="seg" id="study-subs" role="group" aria-label="学習する分野"></div>
+    <main class="card" id="study"></main>
+  </div>
+
+  <div class="view" id="view-quiz" hidden>
+  <section class="settings" aria-label="出題設定">
+    <span class="label">出題ジャンル</span>
+    <div class="chips" id="cats"></div>
+    <div class="row">
+      <div class="seg" id="counts" role="group" aria-label="問題数">
+        <button type="button" id="count-10" data-n="10" aria-pressed="true">10問</button>
+        <button type="button" id="count-20" data-n="20" aria-pressed="false">20問</button>
+        <button type="button" id="count-30" data-n="30" aria-pressed="false">30問</button>
+      </div>
+      <button type="button" class="btn ghost" id="restart">この設定で始め直す</button>
+    </div>
+  </section>
+
+  <main class="card" id="card" aria-live="polite"></main>
+  </div>
+
+  <footer>クイズのキー操作: 1〜4で回答、Enterで次へ。ジャンル右の数字はこのブラウザでの累計正答率。地図データ: us-atlas。</footer>
+</div>
+
+<script src="map-data.js"></script>
+<script>
+(() => {
+  // ---------- データ ----------
+  const REGION = { NE: "北東部", MW: "中西部", S: "南部", W: "西部" };
+  // [FIPS, 州名, 英語名, 州都, 州都(英語), 地域, 間違えやすい都市]
+  const STATES = [
+    ["01","アラバマ","Alabama","モンゴメリー","Montgomery","S","バーミングハム"],
+    ["02","アラスカ","Alaska","ジュノー","Juneau","W","アンカレッジ"],
+    ["04","アリゾナ","Arizona","フェニックス","Phoenix","W","ツーソン"],
+    ["05","アーカンソー","Arkansas","リトルロック","Little Rock","S",""],
+    ["06","カリフォルニア","California","サクラメント","Sacramento","W","ロサンゼルス"],
+    ["08","コロラド","Colorado","デンバー","Denver","W",""],
+    ["09","コネチカット","Connecticut","ハートフォード","Hartford","NE","ニューヘイブン"],
+    ["10","デラウェア","Delaware","ドーバー","Dover","S","ウィルミントン"],
+    ["12","フロリダ","Florida","タラハシー","Tallahassee","S","マイアミ"],
+    ["13","ジョージア","Georgia","アトランタ","Atlanta","S",""],
+    ["15","ハワイ","Hawaii","ホノルル","Honolulu","W",""],
+    ["16","アイダホ","Idaho","ボイシ","Boise","W",""],
+    ["17","イリノイ","Illinois","スプリングフィールド","Springfield","MW","シカゴ"],
+    ["18","インディアナ","Indiana","インディアナポリス","Indianapolis","MW",""],
+    ["19","アイオワ","Iowa","デモイン","Des Moines","MW",""],
+    ["20","カンザス","Kansas","トピカ","Topeka","MW","ウィチタ"],
+    ["21","ケンタッキー","Kentucky","フランクフォート","Frankfort","S","ルイビル"],
+    ["22","ルイジアナ","Louisiana","バトンルージュ","Baton Rouge","S","ニューオーリンズ"],
+    ["23","メイン","Maine","オーガスタ","Augusta","NE","ポートランド"],
+    ["24","メリーランド","Maryland","アナポリス","Annapolis","S","ボルチモア"],
+    ["25","マサチューセッツ","Massachusetts","ボストン","Boston","NE",""],
+    ["26","ミシガン","Michigan","ランシング","Lansing","MW","デトロイト"],
+    ["27","ミネソタ","Minnesota","セントポール","Saint Paul","MW","ミネアポリス"],
+    ["28","ミシシッピ","Mississippi","ジャクソン","Jackson","S",""],
+    ["29","ミズーリ","Missouri","ジェファーソンシティ","Jefferson City","MW","カンザスシティ"],
+    ["30","モンタナ","Montana","ヘレナ","Helena","W","ビリングス"],
+    ["31","ネブラスカ","Nebraska","リンカーン","Lincoln","MW","オマハ"],
+    ["32","ネバダ","Nevada","カーソンシティ","Carson City","W","ラスベガス"],
+    ["33","ニューハンプシャー","New Hampshire","コンコード","Concord","NE","マンチェスター"],
+    ["34","ニュージャージー","New Jersey","トレントン","Trenton","NE","ニューアーク"],
+    ["35","ニューメキシコ","New Mexico","サンタフェ","Santa Fe","W","アルバカーキ"],
+    ["36","ニューヨーク","New York","オールバニ","Albany","NE","ニューヨーク市"],
+    ["37","ノースカロライナ","North Carolina","ローリー","Raleigh","S","シャーロット"],
+    ["38","ノースダコタ","North Dakota","ビスマーク","Bismarck","MW","ファーゴ"],
+    ["39","オハイオ","Ohio","コロンバス","Columbus","MW","クリーブランド"],
+    ["40","オクラホマ","Oklahoma","オクラホマシティ","Oklahoma City","S","タルサ"],
+    ["41","オレゴン","Oregon","セーラム","Salem","W","ポートランド"],
+    ["42","ペンシルベニア","Pennsylvania","ハリスバーグ","Harrisburg","NE","フィラデルフィア"],
+    ["44","ロードアイランド","Rhode Island","プロビデンス","Providence","NE",""],
+    ["45","サウスカロライナ","South Carolina","コロンビア","Columbia","S","チャールストン"],
+    ["46","サウスダコタ","South Dakota","ピア","Pierre","MW","スーフォールズ"],
+    ["47","テネシー","Tennessee","ナッシュビル","Nashville","S","メンフィス"],
+    ["48","テキサス","Texas","オースティン","Austin","S","ヒューストン"],
+    ["49","ユタ","Utah","ソルトレイクシティ","Salt Lake City","W",""],
+    ["50","バーモント","Vermont","モントピリア","Montpelier","NE","バーリントン"],
+    ["51","バージニア","Virginia","リッチモンド","Richmond","S","バージニアビーチ"],
+    ["53","ワシントン","Washington","オリンピア","Olympia","W","シアトル"],
+    ["54","ウェストバージニア","West Virginia","チャールストン","Charleston","S",""],
+    ["55","ウィスコンシン","Wisconsin","マディソン","Madison","MW","ミルウォーキー"],
+    ["56","ワイオミング","Wyoming","シャイアン","Cheyenne","W",""],
+  ].map(([id, jp, en, cap, capEn, region, trap]) => ({ id, jp, en, cap, capEn, region, trap }));
+  const STATE_NOTE = {
+    "53": "首都ワシントンD.C.とは別で、西海岸の最北にある州。",
+    "02": "1867年にロシアから購入。面積は全米最大。",
+    "15": "1959年に50番目の州になった。",
+    "10": "1787年に最初に憲法を批准した「最初の州」。",
+    "44": "面積が最も小さい州。",
+    "48": "面積はアラスカに次いで2位。",
+  };
+
+  // [代, 名前, 英語名, 在任, 政党, ひとこと]
+  const PRESIDENTS = [
+    [1,"ジョージ・ワシントン","George Washington","1789–1797","無所属","初代大統領。1ドル紙幣の肖像。"],
+    [2,"ジョン・アダムズ","John Adams","1797–1801","連邦党","ホワイトハウスに最初に住んだ大統領。"],
+    [3,"トーマス・ジェファーソン","Thomas Jefferson","1801–1809","民主共和党","独立宣言の主な起草者。ルイジアナ買収を行った。"],
+    [4,"ジェームズ・マディソン","James Madison","1809–1817","民主共和党","「憲法の父」。米英戦争（1812年）のときの大統領。"],
+    [5,"ジェームズ・モンロー","James Monroe","1817–1825","民主共和党","1823年にモンロー宣言を出した。"],
+    [6,"ジョン・クインシー・アダムズ","John Quincy Adams","1825–1829","民主共和党","第2代ジョン・アダムズの息子。"],
+    [7,"アンドリュー・ジャクソン","Andrew Jackson","1829–1837","民主党","民主党出身の最初の大統領。インディアン移住法に署名。"],
+    [8,"マーティン・ヴァン・ビューレン","Martin Van Buren","1837–1841","民主党","独立後に生まれた最初の大統領。"],
+    [9,"ウィリアム・ハリソン","William Henry Harrison","1841","ホイッグ党","就任から約1か月で死去。在任期間は歴代最短。"],
+    [10,"ジョン・タイラー","John Tyler","1841–1845","ホイッグ党","大統領の死去で副大統領から昇格した最初の例。"],
+    [11,"ジェームズ・ポーク","James K. Polk","1845–1849","民主党","米墨戦争でカリフォルニアなど西部を獲得。"],
+    [12,"ザカリー・テイラー","Zachary Taylor","1849–1850","ホイッグ党","米墨戦争の英雄。在任中に死去。"],
+    [13,"ミラード・フィルモア","Millard Fillmore","1850–1853","ホイッグ党","ペリーを日本に派遣した。"],
+    [14,"フランクリン・ピアース","Franklin Pierce","1853–1857","民主党","日米和親条約（1854年）締結時の大統領。"],
+    [15,"ジェームズ・ブキャナン","James Buchanan","1857–1861","民主党","南北戦争直前の大統領。"],
+    [16,"エイブラハム・リンカーン","Abraham Lincoln","1861–1865","共和党","南北戦争を指導し、奴隷解放宣言を出した。1865年に暗殺。"],
+    [17,"アンドリュー・ジョンソン","Andrew Johnson","1865–1869","民主党","リンカーン暗殺で昇格。アラスカ購入。"],
+    [18,"ユリシーズ・グラント","Ulysses S. Grant","1869–1877","共和党","南北戦争の北軍総司令官。"],
+    [19,"ラザフォード・ヘイズ","Rutherford B. Hayes","1877–1881","共和党","南部の再建（リコンストラクション）を終わらせた。"],
+    [20,"ジェームズ・ガーフィールド","James A. Garfield","1881","共和党","就任の年に暗殺された。"],
+    [21,"チェスター・アーサー","Chester A. Arthur","1881–1885","共和党","公務員制度改革（ペンドルトン法）を実施。"],
+    [22,"グロバー・クリーブランド","Grover Cleveland","1885–1889","民主党","連続しない2期を務めた最初の大統領（第22代と第24代）。"],
+    [23,"ベンジャミン・ハリソン","Benjamin Harrison","1889–1893","共和党","第9代ウィリアム・ハリソンの孫。"],
+    [24,"グロバー・クリーブランド","Grover Cleveland","1893–1897","民主党","連続しない2期を務めた最初の大統領（第22代と第24代）。"],
+    [25,"ウィリアム・マッキンリー","William McKinley","1897–1901","共和党","米西戦争とハワイ併合（1898年）。1901年に暗殺。"],
+    [26,"セオドア・ルーズベルト","Theodore Roosevelt","1901–1909","共和党","42歳で就任した史上最年少の大統領。日露戦争の講和を仲介。"],
+    [27,"ウィリアム・タフト","William Howard Taft","1909–1913","共和党","退任後に最高裁長官にもなった。"],
+    [28,"ウッドロウ・ウィルソン","Woodrow Wilson","1913–1921","民主党","第一次世界大戦に参戦し、国際連盟を提唱。"],
+    [29,"ウォレン・ハーディング","Warren G. Harding","1921–1923","共和党","在任中に死去。"],
+    [30,"カルビン・クーリッジ","Calvin Coolidge","1923–1929","共和党","好景気の1920年代の大統領。"],
+    [31,"ハーバート・フーヴァー","Herbert Hoover","1929–1933","共和党","就任直後に世界恐慌が起きた。"],
+    [32,"フランクリン・ルーズベルト","Franklin D. Roosevelt","1933–1945","民主党","ニューディール政策。唯一4回当選した大統領。"],
+    [33,"ハリー・トルーマン","Harry S. Truman","1945–1953","民主党","原爆投下を決断し、第二次世界大戦を終結させた。"],
+    [34,"ドワイト・アイゼンハワー","Dwight D. Eisenhower","1953–1961","共和党","第二次大戦の連合軍最高司令官。州間高速道路網を整備。"],
+    [35,"ジョン・F・ケネディ","John F. Kennedy","1961–1963","民主党","キューバ危機に対応。1963年にダラスで暗殺。"],
+    [36,"リンドン・ジョンソン","Lyndon B. Johnson","1963–1969","民主党","1964年の公民権法に署名。ベトナム戦争を拡大。"],
+    [37,"リチャード・ニクソン","Richard Nixon","1969–1974","共和党","ウォーターゲート事件で辞任した唯一の大統領。"],
+    [38,"ジェラルド・フォード","Gerald Ford","1974–1977","共和党","選挙を経ずに副大統領・大統領になった唯一の人物。"],
+    [39,"ジミー・カーター","Jimmy Carter","1977–1981","民主党","退任後にノーベル平和賞を受賞。"],
+    [40,"ロナルド・レーガン","Ronald Reagan","1981–1989","共和党","元俳優。冷戦の終盤を指導。"],
+    [41,"ジョージ・H・W・ブッシュ","George H. W. Bush","1989–1993","共和党","冷戦終結と湾岸戦争のときの大統領。"],
+    [42,"ビル・クリントン","Bill Clinton","1993–2001","民主党","1990年代の好景気のときの大統領。"],
+    [43,"ジョージ・W・ブッシュ","George W. Bush","2001–2009","共和党","第41代の息子。2001年の同時多発テロに直面。"],
+    [44,"バラク・オバマ","Barack Obama","2009–2017","民主党","初のアフリカ系大統領。ハワイ州出身。"],
+    [45,"ドナルド・トランプ","Donald Trump","2017–2021","共和党","2025年に第47代としても就任。"],
+    [46,"ジョー・バイデン","Joe Biden","2021–2025","民主党","就任時78歳で、当時の史上最高齢。"],
+    [47,"ドナルド・トランプ","Donald Trump","2025–","共和党","クリーブランドに次ぎ、連続しない2期を務める2人目。"],
+  ].map(([n, name, en, term, party, fact]) => ({ n, name, en, term, party, fact }));
+
+  // [年, 出来事, 解説, そのときの大統領(代)]
+  const EVENTS = [
+    [1492,"コロンブスがアメリカ大陸に到達","スペインの支援を受けた航海で、カリブ海の島に到達した。"],
+    [1607,"ジェームズタウン建設","バージニアに建てられた、イギリス初の恒久的な植民地。"],
+    [1620,"メイフラワー号がプリマスに到着","ピルグリム・ファーザーズが現在のマサチューセッツ州に上陸した。"],
+    [1773,"ボストン茶会事件","茶法に反発した植民地の人々が、東インド会社の茶を海に投げ捨てた。"],
+    [1775,"独立戦争が始まる（レキシントン・コンコードの戦い）","マサチューセッツでの戦闘からイギリスとの戦争が始まった。"],
+    [1776,"独立宣言","7月4日に大陸会議が採択。主な起草者はトーマス・ジェファーソン。"],
+    [1783,"パリ条約でイギリスが独立を承認","独立戦争が正式に終わった。"],
+    [1787,"合衆国憲法の制定","フィラデルフィアの憲法制定会議で起草された。現存する最古の成文憲法。"],
+    [1791,"権利章典の発効","言論の自由などを定めた修正第1条〜第10条。"],
+    [1803,"ルイジアナ買収","フランスから広大な土地を買い、国土がほぼ倍になった。",3],
+    [1812,"米英戦争が始まる","この戦争中の砲撃を題材に、国歌「星条旗」の詩が書かれた（1814年）。",4],
+    [1823,"モンロー宣言","ヨーロッパと南北アメリカの相互不干渉を唱えた。",5],
+    [1830,"インディアン移住法","先住民を西へ強制移住させ、「涙の道」につながった。",7],
+    [1846,"米墨戦争が始まる","勝利によりカリフォルニアなど南西部を獲得した。",11],
+    [1848,"カリフォルニアで金が見つかる","翌1849年にかけてゴールドラッシュが起き、人々が西へ押し寄せた。",11],
+    [1853,"ペリーが浦賀に来航","翌1854年に日米和親条約が結ばれた。",13],
+    [1861,"南北戦争が始まる","奴隷制などをめぐり、南部11州が連合国を作って対立した。",16],
+    [1863,"奴隷解放宣言とゲティスバーグ演説","「人民の、人民による、人民のための政治」はゲティスバーグ演説の一節。",16],
+    [1865,"南北戦争の終結とリンカーン暗殺","同年、修正第13条で奴隷制が廃止された。",16],
+    [1867,"アラスカ購入","ロシアから約720万ドルで購入した。",17],
+    [1869,"大陸横断鉄道の完成","ユタ州プロモントリーで東西の線路がつながった。",18],
+    [1898,"米西戦争とハワイ併合","スペインに勝ち、フィリピンやプエルトリコなどを獲得した。",25],
+    [1903,"ライト兄弟の初飛行","ノースカロライナ州キティホークで動力飛行に成功した。",26],
+    [1914,"パナマ運河の開通","大西洋と太平洋が運河で結ばれた。",28],
+    [1917,"第一次世界大戦に参戦","ドイツの無制限潜水艦作戦をきっかけに参戦した。",28],
+    [1920,"女性参政権の実現（修正第19条）","全米で女性の投票権が保障された。",28],
+    [1929,"ウォール街の株価大暴落","世界恐慌の始まり。10月24日は「暗黒の木曜日」と呼ばれる。",31],
+    [1933,"ニューディール政策の開始","公共事業や社会保障で恐慌からの回復を図った。",32],
+    [1941,"真珠湾攻撃と第二次世界大戦への参戦","12月7日（現地時間）に日本軍がハワイの真珠湾を攻撃した。",32],
+    [1945,"第二次世界大戦の終結","広島・長崎への原爆投下の後、日本が降伏した。",33],
+    [1954,"ブラウン対教育委員会判決","最高裁が公立学校での人種分離を違憲とした。",34],
+    [1959,"アラスカとハワイが州になる","アラスカが49番目、ハワイが50番目の州になった。",34],
+    [1962,"キューバ危機","ソ連のミサイル配備をめぐり、核戦争の寸前までいった。",35],
+    [1963,"ワシントン大行進とケネディ暗殺","キング牧師が「I Have a Dream」演説を行った。",35],
+    [1964,"公民権法の成立","人種などによる差別を法律で禁止した。",36],
+    [1969,"アポロ11号の月面着陸","アームストロングが人類で初めて月に降り立った。",37],
+    [1974,"ニクソン大統領の辞任","ウォーターゲート事件の責任を取って辞任した。",37],
+    [2001,"同時多発テロ（9.11）","ニューヨークの世界貿易センターなどが攻撃された。",43],
+    [2008,"リーマン・ショック","大手投資銀行の破綻から世界金融危機に広がった。",43],
+  ].map(([year, title, note, pres]) => ({ year, title, note, pres }));
+
+  // [問題, 正解, 誤答3つ, 解説]
+  const TRIVIA = [
+    ["星条旗の横縞は何本？","13本",["50本","12本","15本"],"独立時の13植民地を表す。星の数50は州の数。"],
+    ["上院議員は各州に何人？","2人",["1人","4人","人口に比例した人数"],"上院は合計100人。下院は人口に比例して435人。"],
+    ["大統領の任期は？","4年・最大2期",["4年・制限なし","6年・1期のみ","5年・最大2期"],"3選禁止は修正第22条（1951年）で定められた。"],
+    ["首都ワシントンD.C.の「D.C.」の意味は？","コロンビア特別区",["デラウェア郡","連邦中央区","民主首都"],"District of Columbia。どの州にも属さない連邦直轄地。"],
+    ["自由の女神像を贈った国は？","フランス",["イギリス","スペイン","オランダ"],"独立100周年を記念して贈られ、1886年に完成した。"],
+    ["アメリカの国歌は？","星条旗（The Star-Spangled Banner）",["アメリカ・ザ・ビューティフル","ゴッド・ブレス・アメリカ","ヤンキー・ドゥードゥル"],"1814年の米英戦争中に書かれた詩で、1931年に正式な国歌になった。"],
+    ["五大湖に含まれないのは？","グレートソルト湖",["スペリオル湖","エリー湖","ヒューロン湖"],"五大湖はスペリオル、ミシガン、ヒューロン、エリー、オンタリオ。グレートソルト湖はユタ州の塩湖。"],
+    ["1ドル紙幣に描かれている人物は？","ジョージ・ワシントン",["エイブラハム・リンカーン","アレクサンダー・ハミルトン","ベンジャミン・フランクリン"],"5ドルがリンカーン、10ドルがハミルトン、100ドルがフランクリン。"],
+    ["ラシュモア山に彫られていない大統領は？","フランクリン・ルーズベルト",["ジョージ・ワシントン","トーマス・ジェファーソン","エイブラハム・リンカーン"],"彫られているのはワシントン、ジェファーソン、セオドア・ルーズベルト、リンカーン。サウスダコタ州にある。"],
+    ["独立記念日は何月何日？","7月4日",["7月14日","11月11日","2月22日"],"1776年7月4日に独立宣言が採択された。"],
+    ["最初の13植民地に含まれないのは？","バーモント",["バージニア","ジョージア","ニューハンプシャー"],"バーモントは1791年に14番目の州になった。"],
+    ["共和党のシンボルになっている動物は？","ゾウ",["ロバ","ハクトウワシ","クマ"],"民主党のシンボルはロバ。19世紀の風刺漫画から広まった。"],
+    ["アメリカの国鳥は？","ハクトウワシ",["シチメンチョウ","アメリカコガラ","コンドル"],"国章にも描かれている。"],
+    ["最高裁判所の判事は何人？","9人",["7人","12人","15人"],"大統領が指名し、上院の承認で任命される。任期は終身。"],
+    ["グランドキャニオンがある州は？","アリゾナ",["ユタ","ネバダ","コロラド"],"コロラド川が長い時間をかけて削った峡谷。"],
+    ["北米最高峰デナリがある州は？","アラスカ",["コロラド","ワシントン","カリフォルニア"],"標高6,190m。2015年に旧称マッキンリー山からデナリに戻された（2025年に連邦政府は再びマッキンリーに変更）。"],
+    ["人口が最も多い州は？","カリフォルニア",["テキサス","フロリダ","ニューヨーク"],"2位はテキサス、3位はフロリダ。"],
+    ["面積が最も大きい州は？","アラスカ",["テキサス","カリフォルニア","モンタナ"],"テキサスの約2.5倍の広さがある。"],
+    ["面積が最も小さい州は？","ロードアイランド",["デラウェア","コネチカット","ハワイ"],"2番目に小さいのはデラウェア。"],
+    ["ミシシッピ川が最後に流れ込むのは？","メキシコ湾",["大西洋","太平洋","五大湖"],"ルイジアナ州ニューオーリンズの下流で注ぐ。2025年から米政府は「アメリカ湾」と呼んでいる。"],
+  ].map(([q, a, wrong, note]) => ({ q, a, wrong, note }));
+
+  const CATS = [
+    { id: "map", name: "州と地図" },
+    { id: "capital", name: "州都" },
+    { id: "president", name: "大統領" },
+    { id: "history", name: "歴史と年号" },
+    { id: "trivia", name: "しくみ・雑学" },
+  ];
+
+  // ---------- ユーティリティ ----------
+  const rand = (n) => Math.floor(Math.random() * n);
+  const pick = (arr) => arr[rand(arr.length)];
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  const sample = (arr, n) => shuffle(arr).slice(0, n);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  // 正解と重複しない誤答を、優先候補から順に集めて3つにする
+  const fill = (answer, ...pools) => {
+    const out = [];
+    for (const pool of pools) for (const v of pool) {
+      if (out.length < 3 && v && v !== answer && !out.includes(v)) out.push(v);
+    }
+    return out;
+  };
+  const stateBy = Object.fromEntries(STATES.map((s) => [s.id, s]));
+  const presBy = Object.fromEntries(PRESIDENTS.map((p) => [p.n, p]));
+  const stateNote = (s) =>
+    `${s.jp}州（${s.en}）は${REGION[s.region]}の州で、州都は${s.cap}（${s.capEn}）。${STATE_NOTE[s.id] || ""}`;
+  const presNote = (p) => `第${p.n}代 ${p.name}（${p.en}）、在任 ${p.term}、${p.party}。${p.fact}`;
+
+  // ---------- 出題 ----------
+  const GEN = {
+    map() {
+      const s = pick(STATES);
+      const near = STATES.filter((x) => x.region === s.region);
+      return {
+        key: "map" + s.id,
+        prompt: "地図で色がついている州は？",
+        map: { hl: s.id },
+        answer: s.jp + "州",
+        wrong: fill(s.jp + "州", sample(near, 3).slice(0, 2).map((x) => x.jp + "州"), shuffle(STATES).map((x) => x.jp + "州")),
+        after: { hl: s.id, dot: s.id },
+        note: stateNote(s),
+      };
+    },
+    capital() {
+      const s = pick(STATES);
+      const mode = rand(3);
+      const caps = shuffle(STATES).map((x) => x.cap);
+      const trapNote = s.trap ? `${s.trap}と間違えやすいので注意。` : "";
+      if (mode === 0) return {
+        key: "cap0" + s.id,
+        prompt: `${s.jp}州の州都は？`, en: `Capital of ${s.en}`,
+        map: { hl: s.id },
+        answer: s.cap, wrong: fill(s.cap, [s.trap], caps),
+        after: { hl: s.id, dot: s.id },
+        note: stateNote(s) + trapNote,
+      };
+      if (mode === 1) return {
+        key: "cap1" + s.id,
+        prompt: `州都が${s.cap}なのはどの州？`, en: `${s.capEn} is the capital of…`,
+        answer: s.jp + "州", wrong: fill(s.jp + "州", shuffle(STATES).map((x) => x.jp + "州")),
+        after: { hl: s.id, dot: s.id },
+        note: stateNote(s),
+      };
+      return {
+        key: "cap2" + s.id,
+        prompt: "地図の★の位置にある州都は？",
+        map: { dot: s.id },
+        answer: s.cap, wrong: fill(s.cap, [s.trap], caps),
+        after: { hl: s.id, dot: s.id },
+        note: stateNote(s) + trapNote,
+      };
+    },
+    president() {
+      const mode = rand(3);
+      if (mode === 2) {
+        const e = pick(EVENTS.filter((x) => x.pres));
+        const p = presBy[e.pres];
+        const near = PRESIDENTS.filter((x) => Math.abs(x.n - p.n) <= 6);
+        return {
+          key: "pres2" + e.year,
+          prompt: `「${e.title}」（${e.year}年）のときの大統領は？`,
+          answer: p.name, wrong: fill(p.name, shuffle(near).map((x) => x.name)),
+          note: presNote(p),
+        };
+      }
+      const p = pick(PRESIDENTS);
+      const near = PRESIDENTS.filter((x) => Math.abs(x.n - p.n) <= 6);
+      return {
+        key: "pres" + mode + p.n,
+        prompt: mode === 0 ? `第${p.n}代大統領は？` : `在任期間が ${p.term} の大統領は？`,
+        answer: p.name, wrong: fill(p.name, shuffle(near).map((x) => x.name)),
+        note: presNote(p),
+      };
+    },
+    history() {
+      const mode = rand(3);
+      if (mode === 2) {
+        const four = sample(EVENTS, 4);
+        const oldest = four.reduce((a, b) => (a.year < b.year ? a : b));
+        return {
+          key: "hist2" + four.map((x) => x.year).join(),
+          prompt: "次のうち、最も古い出来事は？",
+          answer: oldest.title, wrong: four.filter((x) => x !== oldest).map((x) => x.title),
+          note: four.slice().sort((a, b) => a.year - b.year).map((x) => `${x.year}年 ${x.title}`).join(" → "),
+        };
+      }
+      const e = pick(EVENTS);
+      // 近い年の出来事ほど誤答に選ばれやすくして、難しすぎず易しすぎない4択にする
+      const near = EVENTS.filter((x) => x !== e).sort((a, b) => Math.abs(a.year - e.year) - Math.abs(b.year - e.year)).slice(0, 6);
+      if (mode === 0) return {
+        key: "hist0" + e.year,
+        prompt: `「${e.title}」が起きた年は？`,
+        answer: e.year + "年", wrong: fill(e.year + "年", shuffle(near).map((x) => x.year + "年")),
+        mono: true,
+        note: `${e.year}年：${e.note}`,
+      };
+      return {
+        key: "hist1" + e.year,
+        prompt: `${e.year}年の出来事は？`,
+        answer: e.title, wrong: fill(e.title, shuffle(near).map((x) => x.title)),
+        note: `${e.year}年：${e.note}`,
+      };
+    },
+    trivia() {
+      const t = pick(TRIVIA);
+      return { key: "triv" + t.q, prompt: t.q, answer: t.a, wrong: t.wrong, note: t.note };
+    },
+  };
+
+  function makeQuestion(cat, used) {
+    let q;
+    for (let i = 0; i < 40; i++) {
+      q = GEN[cat]();
+      if (!used.has(q.key)) break;
+    }
+    used.add(q.key);
+    q.cat = cat;
+    q.choices = shuffle([q.answer, ...q.wrong]);
+    return q;
+  }
+
+  // ---------- 地図 ----------
+  const MAP = window.US_MAP;
+  const SMALL_AREA = 2500;
+  function starPath(x, y, r) {
+    let d = "";
+    for (let i = 0; i < 10; i++) {
+      const rr = i % 2 ? r * 0.45 : r;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      d += (i ? "L" : "M") + (x + rr * Math.cos(a)).toFixed(1) + "," + (y + rr * Math.sin(a)).toFixed(1);
+    }
+    return d + "Z";
+  }
+  function mapSvg(opt) {
+    if (!MAP) return "";
+    const { hl, dot, rg, click } = opt;
+    let s = `<svg class="map${click ? " clickable" : ""}" viewBox="0 0 975 610" role="img" aria-label="アメリカ合衆国の地図">`;
+    for (const [id, st] of Object.entries(MAP.states)) {
+      const cls = id === hl ? " hl" : rg && stateBy[id]?.region === rg ? " rg" : "";
+      const title = click && stateBy[id] ? `<title>${stateBy[id].jp}州</title>` : "";
+      s += `<path class="st${cls}" data-id="${id}" d="${st.d}">${title}</path>`;
+    }
+    s += `<path class="borders" d="${MAP.borders}"></path>`;
+    if (hl && MAP.states[hl].a < SMALL_AREA) {
+      const [cx, cy] = MAP.states[hl].c;
+      s += `<circle class="ring" cx="${cx}" cy="${cy}" r="18"></circle>`;
+    }
+    if (dot && MAP.states[dot].cap) {
+      const [x, y] = MAP.states[dot].cap;
+      s += `<path class="capstar" d="${starPath(x, y, 11)}"></path>`;
+    }
+    return s + "</svg>";
+  }
+
+  // ---------- 成績(このブラウザのみ) ----------
+  const STORE_KEY = "usquiz.stats.v1";
+  let stats = {};
+  try { stats = JSON.parse(localStorage.getItem(STORE_KEY) || "{}") || {}; } catch { stats = {}; }
+  function record(cat, ok) {
+    const s = (stats[cat] ||= { n: 0, c: 0 });
+    s.n++; if (ok) s.c++;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(stats)); } catch {}
+  }
+
+  // ---------- 状態と描画 ----------
+  const $cats = document.getElementById("cats");
+  const $card = document.getElementById("card");
+  let selected = new Set(CATS.map((c) => c.id));
+  let count = 10;
+  let game;
+
+  function renderCats() {
+    $cats.innerHTML = CATS.map((c) => {
+      const s = stats[c.id];
+      const rate = s && s.n ? `<span class="rate">${Math.round((s.c / s.n) * 100)}%</span>` : "";
+      return `<button type="button" class="chip" id="cat-${c.id}" data-cat="${c.id}" aria-pressed="${selected.has(c.id)}">${c.name}${rate}</button>`;
+    }).join("");
+  }
+
+  function newGame(questions) {
+    if (!questions) {
+      const used = new Set();
+      const ids = CATS.map((c) => c.id).filter((id) => selected.has(id));
+      const order = shuffle(Array.from({ length: count }, (_, i) => ids[i % ids.length]));
+      questions = order.map((cat) => makeQuestion(cat, used));
+    }
+    game = { qs: questions, i: 0, results: [], answered: null };
+    renderQuestion();
+  }
+
+  function stripes() {
+    return `<div class="stripes" aria-hidden="true">` + game.qs.map((_, i) => {
+      const r = game.results[i];
+      const cls = r === true ? "ok" : r === false ? "ng" : i === game.i ? "now" : "";
+      return `<i class="${cls}"></i>`;
+    }).join("") + `</div>`;
+  }
+
+  function renderQuestion() {
+    const q = game.qs[game.i];
+    const done = game.answered !== null;
+    const score = game.results.filter(Boolean).length;
+    const catName = CATS.find((c) => c.id === q.cat).name;
+    const mapOpt = done ? q.after || q.map : q.map;
+    let html = `
+      <div class="status"><span>問題 <span class="num">${game.i + 1} / ${game.qs.length}</span></span><span>正解 <span class="num">${score}</span></span></div>
+      ${stripes()}
+      <span class="tag">${esc(catName)}</span>
+      <p class="prompt">${esc(q.prompt)}${q.en ? `<span class="en">${esc(q.en)}</span>` : ""}</p>
+      ${mapOpt ? mapSvg(mapOpt) : ""}
+      <div class="choices">` +
+      q.choices.map((c, i) => {
+        let cls = "";
+        if (done && c === q.answer) cls = " ok";
+        else if (done && c === game.answered) cls = " ng";
+        return `<button type="button" class="choice${cls}" id="choice-${i}" data-i="${i}"${done ? " disabled" : ""}><span class="key">${i + 1}</span><span class="txt${q.mono ? " mono" : ""}">${esc(c)}</span></button>`;
+      }).join("") + `</div>`;
+    if (done) {
+      const ok = game.answered === q.answer;
+      const last = game.i === game.qs.length - 1;
+      html += `
+        <div class="feedback">
+          <div class="verdict ${ok ? "ok" : "ng"}">${ok ? "正解" : `不正解。正解は「${esc(q.answer)}」`}</div>
+          <p class="note">${esc(q.note)}</p>
+          <div class="actions"><button type="button" class="btn" id="next">${last ? "結果を見る" : "次の問題"}</button></div>
+        </div>`;
+    }
+    $card.innerHTML = html;
+    if (done) document.getElementById("next").focus();
+  }
+
+  function answer(i) {
+    if (!game || game.answered !== null || game.i >= game.qs.length) return;
+    const q = game.qs[game.i];
+    game.answered = q.choices[i];
+    const ok = game.answered === q.answer;
+    game.results[game.i] = ok;
+    record(q.cat, ok);
+    renderQuestion();
+  }
+
+  function next() {
+    if (!game || game.answered === null) return;
+    game.answered = null;
+    game.i++;
+    if (game.i >= game.qs.length) renderResult();
+    else renderQuestion();
+  }
+
+  function renderResult() {
+    renderCats();
+    const score = game.results.filter(Boolean).length;
+    const missed = game.qs.filter((_, i) => !game.results[i]);
+    const comment = score === game.qs.length ? "全問正解。"
+      : score / game.qs.length >= 0.8 ? "よくできています。間違えた問題を見直しておきましょう。"
+      : score / game.qs.length >= 0.5 ? "半分以上正解。解説を読んでもう一度挑戦してみましょう。"
+      : "まずは間違えた問題の解説から確認しましょう。";
+    $card.innerHTML = `
+      <div class="result" style="display:grid;gap:12px">
+        ${stripes()}
+        <h2>${score}<small>/ ${game.qs.length} 問正解</small></h2>
+        <p class="note">${comment}</p>
+        ${missed.length ? `<span class="label">間違えた問題</span><ul class="missed">` + missed.map((q) =>
+          `<li><div class="q">${esc(q.prompt)}</div><div class="a">正解：${esc(q.answer)}</div></li>`).join("") + `</ul>` : ""}
+        <div class="actions">
+          ${missed.length ? `<button type="button" class="btn ghost" id="retry">間違えた問題だけもう一度</button>` : ""}
+          <button type="button" class="btn" id="again">新しい問題で続ける</button>
+        </div>
+      </div>`;
+    game.missed = missed;
+    game.i = game.qs.length;
+    document.getElementById("again").focus();
+  }
+
+  // ---------- イベント ----------
+  $cats.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cat]");
+    if (!b) return;
+    const id = b.dataset.cat;
+    if (selected.has(id)) { if (selected.size > 1) selected.delete(id); }
+    else selected.add(id);
+    renderCats();
+  });
+  document.getElementById("counts").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-n]");
+    if (!b) return;
+    count = Number(b.dataset.n);
+    document.querySelectorAll("#counts button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  });
+  document.getElementById("restart").addEventListener("click", () => newGame());
+  $card.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-i]");
+    if (c) return answer(Number(c.dataset.i));
+    if (e.target.closest("#next")) return next();
+    if (e.target.closest("#again")) return newGame();
+    if (e.target.closest("#retry")) return newGame(shuffle(game.missed).map((q) => ({ ...q, choices: shuffle(q.choices) })));
+  });
+  // ---------- 覚える ----------
+  const ERAS = [
+    [0, 1762, "植民地時代"],
+    [1763, 1800, "独立と建国"],
+    [1801, 1860, "領土の拡大"],
+    [1861, 1877, "南北戦争と再建"],
+    [1878, 1945, "産業化と二つの世界大戦"],
+    [1946, 9999, "戦後から現代"],
+  ];
+  const eraSpan = ([from, to]) => (from === 0 ? `〜${to}` : to === 9999 ? `${from}〜` : `${from}–${to}`);
+  const byEra = (items, yearOf) => ERAS.map((era) => ({ era, items: items.filter((x) => yearOf(x) >= era[0] && yearOf(x) <= era[1]) }))
+    .filter((g) => g.items.length);
+  const SUBS = [
+    { id: "states", name: "州と州都", hide: "州都を隠す" },
+    { id: "presidents", name: "大統領", hide: "名前を隠す" },
+    { id: "history", name: "歴史年表", hide: "年を隠す" },
+    { id: "trivia", name: "しくみ・雑学", hide: "答えを隠す" },
+  ];
+  const $study = document.getElementById("study");
+  const $subs = document.getElementById("study-subs");
+  const study = { sub: "states", sel: "06", hide: {} };
+
+  function stateMemo(s) {
+    const parts = [];
+    if (s.trap) parts.push(`${s.trap}ではない`);
+    if (STATE_NOTE[s.id]) parts.push(STATE_NOTE[s.id]);
+    return parts.join("。");
+  }
+  function stateInfo(s) {
+    return `
+      <div class="name">${s.jp}州<span class="en">${s.en}</span></div>
+      <dl>
+        <dt>州都</dt><dd><span class="secret">${s.cap}（${s.capEn}）</span></dd>
+        <dt>地域</dt><dd>${REGION[s.region]}</dd>
+        ${stateMemo(s) ? `<dt>メモ</dt><dd>${esc(stateMemo(s))}</dd>` : ""}
+      </dl>`;
+  }
+  function selectState(id, scroll) {
+    if (!stateBy[id]) return;
+    study.sel = id;
+    const s = stateBy[id];
+    document.getElementById("study-map").innerHTML = mapSvg({ hl: id, dot: id, rg: s.region, click: true });
+    document.getElementById("study-info").innerHTML = stateInfo(s);
+    $study.querySelectorAll("tr[data-state]").forEach((tr) => tr.classList.toggle("sel", tr.dataset.state === id));
+    if (scroll) {
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.getElementById("study-map").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+    }
+  }
+
+  const VIEWS = {
+    states() {
+      const groups = Object.keys(REGION).map((rg) => {
+        const rows = STATES.filter((s) => s.region === rg).map((s) => `
+          <tr data-state="${s.id}"${s.id === study.sel ? ' class="sel"' : ""}>
+            <td><span class="nm">${s.jp}</span><span class="en">${s.en}</span>${stateMemo(s) ? `<span class="memo">${esc(stateMemo(s))}</span>` : ""}</td>
+            <td><span class="secret"><span class="nm">${s.cap}</span><span class="en">${s.capEn}</span></span></td>
+          </tr>`).join("");
+        return `<h3 class="group-h">${REGION[rg]}<span class="span">${STATES.filter((s) => s.region === rg).length}州</span></h3>
+          <div class="tbl"><table><thead><tr><th>州</th><th>州都</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      }).join("");
+      return {
+        meta: "50州・4地域。地図の州か表の行をタップすると詳しく表示",
+        html: `<div id="study-map"></div><div class="info" id="study-info"></div>${groups}`,
+      };
+    },
+    presidents() {
+      const party = (p) => (p === "民主党" ? "dem" : p === "共和党" ? "rep" : "");
+      const groups = byEra(PRESIDENTS, (p) => parseInt(p.term, 10)).map(({ era, items }) => `
+        <h3 class="group-h">${era[2]}<span class="span">${eraSpan(era)}</span></h3>
+        <ul class="items">${items.map((p) => `
+          <li class="item">
+            <span class="lead">第${p.n}代</span>
+            <div>
+              <div class="title"><span class="secret">${p.name}<span class="sub"> ${p.en}</span></span><span class="pill ${party(p.party)}">${p.party}</span></div>
+              <div class="sub">${p.term}</div>
+              <p class="body">${esc(p.fact)}</p>
+            </div>
+          </li>`).join("")}</ul>`).join("");
+      return { meta: "第1代〜第47代。クリーブランドとトランプは連続しない2期", html: groups };
+    },
+    history() {
+      const groups = byEra(EVENTS, (e) => e.year).map(({ era, items }) => `
+        <h3 class="group-h">${era[2]}<span class="span">${eraSpan(era)}</span></h3>
+        <ul class="items">${items.map((e) => `
+          <li class="item">
+            <span class="lead"><span class="secret">${e.year}</span></span>
+            <div>
+              <div class="title">${esc(e.title)}</div>
+              ${e.pres ? `<div class="sub">大統領：第${e.pres}代 ${presBy[e.pres].name}</div>` : ""}
+              <p class="body">${esc(e.note)}</p>
+            </div>
+          </li>`).join("")}</ul>`).join("");
+      return { meta: `${EVENTS[0].year}年〜${EVENTS[EVENTS.length - 1].year}年の${EVENTS.length}の出来事`, html: groups };
+    },
+    trivia() {
+      return {
+        meta: `${TRIVIA.length}項目`,
+        html: `<ul class="items">${TRIVIA.map((t) => `
+          <li class="item qa">
+            <div class="title">${esc(t.q)}</div>
+            <div><span class="secret"><strong>${esc(t.a)}</strong></span></div>
+            <p class="body sub">${esc(t.note)}</p>
+          </li>`).join("")}</ul>`,
+      };
+    },
+  };
+
+  function renderStudy() {
+    $subs.innerHTML = SUBS.map((s) =>
+      `<button type="button" id="sub-${s.id}" data-sub="${s.id}" aria-pressed="${s.id === study.sub}">${s.name}</button>`).join("");
+    const sub = SUBS.find((s) => s.id === study.sub);
+    const v = VIEWS[study.sub]();
+    const hiding = !!study.hide[study.sub];
+    $study.className = "card" + (hiding ? " hiding" : "");
+    $study.innerHTML = `
+      <div class="toolbar">
+        <span class="meta">${v.meta}</span>
+        <div class="seg"><button type="button" id="hide-toggle" aria-pressed="${hiding}">${sub.hide}</button></div>
+      </div>
+      ${hiding ? `<p class="hint" style="margin:0">隠した部分をタップすると表示されます。思い出してからタップしましょう。</p>` : ""}
+      ${v.html}`;
+    if (study.sub === "states") selectState(study.sel);
+  }
+
+  $subs.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sub]");
+    if (!b || b.dataset.sub === study.sub) return;
+    study.sub = b.dataset.sub;
+    renderStudy();
+  });
+  $study.addEventListener("click", (e) => {
+    if (e.target.closest("#hide-toggle")) {
+      study.hide[study.sub] = !study.hide[study.sub];
+      return renderStudy();
+    }
+    const secret = e.target.closest(".secret");
+    if (secret && $study.classList.contains("hiding") && !secret.classList.contains("shown")) {
+      secret.classList.add("shown");
+      return;
+    }
+    const path = e.target.closest("path[data-id]");
+    if (path) return selectState(path.dataset.id);
+    const row = e.target.closest("tr[data-state]");
+    if (row) return selectState(row.dataset.state, true);
+  });
+
+  // ---------- モード切替 ----------
+  const TAB_KEY = "usquiz.tab.v1";
+  let view = "study";
+  function showView(v) {
+    view = v;
+    document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === v)));
+    document.getElementById("view-study").hidden = v !== "study";
+    document.getElementById("view-quiz").hidden = v !== "quiz";
+    try { localStorage.setItem(TAB_KEY, v); } catch {}
+  }
+  document.querySelector(".tabs").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-view]");
+    if (t) showView(t.dataset.view);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (view !== "quiz") return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^[1-4]$/.test(e.key)) answer(Number(e.key) - 1);
+    else if (e.key === "Enter" && game && game.answered !== null && document.activeElement?.id !== "next") { e.preventDefault(); next(); }
+  });
+
+  renderCats();
+  newGame();
+  renderStudy();
+  let savedTab = null;
+  try { savedTab = localStorage.getItem(TAB_KEY); } catch {}
+  showView(savedTab === "quiz" ? "quiz" : "study");
+})();
+</script>
+
+</body>
+</html>
