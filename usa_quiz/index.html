@@ -194,6 +194,18 @@ footer { font-size: 0.75rem; color: var(--muted); }
 .faces { display: flex; flex-wrap: wrap; gap: 10px; }
 .faces figure { margin: 0; display: grid; gap: 4px; justify-items: start; }
 .faces figcaption { font-size: 0.75rem; color: var(--muted); }
+img.face[data-face] { cursor: zoom-in; }
+.zoom {
+  border: 0; padding: 0; margin: auto; background: transparent; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px);
+}
+.zoom::backdrop { background: rgb(0 0 0 / 0.75); }
+.zoom figure { margin: 0; display: grid; gap: 10px; justify-items: center; cursor: zoom-out; }
+.zoom img {
+  display: block; width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 110px); object-fit: contain;
+  border-radius: 10px; background: var(--land);
+}
+.zoom figcaption { color: #fff; font-weight: 700; text-align: center; line-height: 1.5; }
+.zoom figcaption small { display: block; font-weight: 400; opacity: 0.8; }
 .pill { display: inline-block; font-size: 0.7rem; font-weight: 700; border: 1px solid currentColor; border-radius: 999px; padding: 0 8px; margin-left: 6px; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
 .pill.dem { color: var(--mark); }
 .pill.rep { color: var(--star); }
@@ -242,6 +254,10 @@ footer { font-size: 0.75rem; color: var(--muted); }
 
   <footer>クイズのキー操作: 1〜4で回答（並び替えは順に押す）、Enterで次へ。ジャンル右の数字はこのブラウザでの累計正答率。地図データ: us-atlas。大統領の肖像: Wikimedia Commons（パブリックドメイン／CC0）。</footer>
 </div>
+
+<dialog class="zoom" id="zoom" aria-label="肖像の拡大">
+  <figure><img alt=""><figcaption></figcaption></figure>
+</dialog>
 
 <script src="map-data.js"></script>
 <script>
@@ -523,9 +539,9 @@ footer { font-size: 0.75rem; color: var(--muted); }
   const faceImg = (n, cls = "") => {
     const path = PORTRAITS[n];
     if (!path) return "";
-    const src = `https://upload.wikimedia.org/wikipedia/commons/thumb/${path}/250px-${path.split("/").pop()}`;
-    return `<img class="face${cls ? " " + cls : ""}" src="${src}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">`;
+    return `<img class="face${cls ? " " + cls : ""}" src="${faceSrc(path, 250)}" alt="" loading="lazy" decoding="async" data-face="${n}" onerror="this.hidden=true">`;
   };
+  const faceSrc = (path, w) => `https://upload.wikimedia.org/wikipedia/commons/thumb/${path}/${w}px-${path.split("/").pop()}`;
   const presNote = (p) => `第${p.n}代 ${p.name}（${p.en}）、在任 ${p.term}、${p.party}。${p.fact}`;
 
   // ---------- 出題 ----------
@@ -1164,8 +1180,24 @@ footer { font-size: 0.75rem; color: var(--muted); }
     if (t) showView(t.dataset.view);
   });
 
+  // 肖像をクリックすると大きく表示する。どこかを押すか Esc で閉じる
+  const zoom = document.getElementById("zoom");
+  const zoomImg = zoom.querySelector("img");
+  document.addEventListener("click", (e) => {
+    const face = e.target.closest("img[data-face]");
+    if (!face) return;
+    const p = presBy[face.dataset.face];
+    const path = PORTRAITS[p.n];
+    zoomImg.onerror = () => { zoomImg.onerror = null; zoomImg.src = face.src; };
+    zoomImg.src = faceSrc(path, 500);
+    zoomImg.alt = p.name;
+    zoom.querySelector("figcaption").innerHTML = `第${p.n}代 ${esc(p.name)}<small>${esc(p.en)}（${esc(p.term)}）</small>`;
+    zoom.showModal();
+  });
+  zoom.addEventListener("click", () => zoom.close());
+
   document.addEventListener("keydown", (e) => {
-    if (view !== "quiz") return;
+    if (view !== "quiz" || zoom.open) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^[1-4]$/.test(e.key)) {
       const i = Number(e.key) - 1;
