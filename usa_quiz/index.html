@@ -182,6 +182,7 @@ footer { font-size: 0.75rem; color: var(--muted); }
 .item { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .item .lead { font-family: var(--font-mono); font-weight: 600; color: var(--mark); font-variant-numeric: tabular-nums; }
 .item .title { font-weight: 700; }
+.item .title .star { color: var(--mark); margin-right: 4px; }
 .item .sub { font-size: 0.82rem; color: var(--muted); }
 .item .body { margin: 2px 0 0; font-size: 0.92rem; max-width: 62ch; }
 .item.qa { grid-template-columns: minmax(0, 1fr); }
@@ -239,6 +240,12 @@ img.face[data-face] { cursor: zoom-in; }
   <section class="settings" aria-label="出題設定">
     <span class="label">出題ジャンル</span>
     <div class="chips" id="cats"></div>
+    <div class="row" id="star-row">
+      <div class="seg" id="star-scope" role="group" aria-label="歴史と年号の出題範囲">
+        <button type="button" data-star="1">★の年号だけ</button>
+        <button type="button" data-star="0">全部の年号</button>
+      </div>
+    </div>
     <div class="row">
       <div class="seg" id="counts" role="group" aria-label="問題数">
         <button type="button" id="count-10" data-n="10" aria-pressed="true">10問</button>
@@ -471,6 +478,18 @@ img.face[data-face] { cursor: zoom-in; }
     [2001,"同時多発テロ（9.11）","ニューヨークの世界貿易センターなどが攻撃された。",43],
     [2008,"リーマン・ショック","大手投資銀行の破綻から世界金融危機に広がった。",43],
   ].map(([year, title, note, pres]) => ({ year, title, note, pres }));
+  // まず覚える目印の年号。各時代から2つずつ選び、ほかの出来事はこれの前後で位置をつかむ
+  const STAR_YEARS = new Set([1492, 1620, 1776, 1787, 1803, 1853, 1861, 1865, 1929, 1941, 1969, 2001]);
+  for (const e of EVENTS) e.star = STAR_YEARS.has(e.year);
+  // 「★だけ」の設定は「覚える」と「クイズ」で共通にする
+  const STAR_KEY = "usquiz.star.v1";
+  let starOnly = true;
+  try { starOnly = localStorage.getItem(STAR_KEY) !== "0"; } catch {}
+  const setStarOnly = (v) => {
+    starOnly = v;
+    try { localStorage.setItem(STAR_KEY, v ? "1" : "0"); } catch {}
+  };
+  const historyEvents = () => (starOnly ? EVENTS.filter((e) => e.star) : EVENTS);
 
   // [問題, 正解, 誤答3つ, 解説, 覚える用の見出し, 覚えること, 覚える用の補足]
   const TRIVIA = [
@@ -676,9 +695,10 @@ img.face[data-face] { cursor: zoom-in; }
       };
     },
     history() {
+      const events = historyEvents();
       const mode = rand(4);
       if (mode === 2) {
-        const four = sample(EVENTS, 4).sort((a, b) => a.year - b.year);
+        const four = sample(events, 4).sort((a, b) => a.year - b.year);
         return {
           key: "hist2" + four.map((x) => x.year).join(),
           type: "order",
@@ -687,9 +707,9 @@ img.face[data-face] { cursor: zoom-in; }
           note: four.map((x) => `${x.year}年 ${x.title}`).join(" → "),
         };
       }
-      const e = pick(EVENTS);
+      const e = pick(events);
       // 近い年の出来事ほど誤答に選ばれやすくして、難しすぎず易しすぎない4択にする
-      const near = EVENTS.filter((x) => x !== e).sort((a, b) => Math.abs(a.year - e.year) - Math.abs(b.year - e.year)).slice(0, 6);
+      const near = events.filter((x) => x !== e).sort((a, b) => Math.abs(a.year - e.year) - Math.abs(b.year - e.year)).slice(0, 6);
       if (mode === 3) {
         const truth = rand(2) === 0;
         if (rand(2)) {
@@ -814,6 +834,8 @@ img.face[data-face] { cursor: zoom-in; }
       const rate = s && s.n ? `<span class="rate">${Math.round((s.c / s.n) * 100)}%</span>` : "";
       return `<button type="button" class="chip" id="cat-${c.id}" data-cat="${c.id}" aria-pressed="${selected.has(c.id)}">${c.name}${rate}</button>`;
     }).join("");
+    document.getElementById("star-row").hidden = !selected.has("history");
+    document.querySelectorAll("#star-scope button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.star === "1") === starOnly)));
   }
 
   function newGame(questions) {
@@ -983,6 +1005,12 @@ img.face[data-face] { cursor: zoom-in; }
     else selected.add(id);
     renderCats();
   });
+  document.getElementById("star-scope").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-star]");
+    if (!b) return;
+    setStarOnly(b.dataset.star === "1");
+    renderCats();
+  });
   document.getElementById("counts").addEventListener("click", (e) => {
     const b = e.target.closest("[data-n]");
     if (!b) return;
@@ -1093,18 +1121,23 @@ img.face[data-face] { cursor: zoom-in; }
       return { meta: "第1代〜第47代。クリーブランドとトランプは連続しない2期", html: groups };
     },
     history() {
-      const groups = byEra(EVENTS, (e) => e.year).map(({ era, items }) => `
+      const stars = EVENTS.filter((e) => e.star).length;
+      const groups = byEra(historyEvents(), (e) => e.year).map(({ era, items }) => `
         <h3 class="group-h">${era[2]}<span class="span">${eraSpan(era)}</span></h3>
         <ul class="items">${items.map((e) => `
           <li class="item">
             <span class="lead"><span class="secret">${e.year}</span></span>
             <div>
-              <div class="title">${esc(e.title)}</div>
+              <div class="title">${e.star ? `<span class="star">★</span>` : ""}${esc(e.title)}</div>
               ${e.pres ? `<div class="sub">大統領：第${e.pres}代 ${presBy[e.pres].name}</div>` : ""}
               <p class="body">${esc(e.note)}</p>
             </div>
           </li>`).join("")}</ul>`).join("");
-      return { meta: `${EVENTS[0].year}年〜${EVENTS[EVENTS.length - 1].year}年の${EVENTS.length}の出来事`, html: groups };
+      return {
+        meta: starOnly ? `まず覚える★の${stars}件（全${EVENTS.length}件）` : `${EVENTS[0].year}年〜${EVENTS[EVENTS.length - 1].year}年の${EVENTS.length}の出来事`,
+        tools: `<button type="button" id="star-toggle" aria-pressed="${starOnly}">★だけ表示</button>`,
+        html: groups,
+      };
     },
     trivia() {
       return {
@@ -1129,7 +1162,7 @@ img.face[data-face] { cursor: zoom-in; }
     $study.innerHTML = `
       <div class="toolbar">
         <span class="meta">${v.meta}</span>
-        <div class="seg"><button type="button" id="hide-toggle" aria-pressed="${hiding}">${sub.hide}</button></div>
+        <div class="seg">${v.tools || ""}<button type="button" id="hide-toggle" aria-pressed="${hiding}">${sub.hide}</button></div>
       </div>
       ${hiding ? `<p class="hint" style="margin:0">隠した部分をタップすると表示されます。思い出してからタップしましょう。</p>` : ""}
       ${v.html}`;
@@ -1143,6 +1176,11 @@ img.face[data-face] { cursor: zoom-in; }
     renderStudy();
   });
   $study.addEventListener("click", (e) => {
+    if (e.target.closest("#star-toggle")) {
+      setStarOnly(!starOnly);
+      renderCats();
+      return renderStudy();
+    }
     if (e.target.closest("#hide-toggle")) {
       study.hide[study.sub] = !study.hide[study.sub];
       return renderStudy();
